@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to SemVer.
 
+## [Unreleased]
+
+### Added
+
+- A browser-based 3D harbor demo focused on fluid continuity.
+
+### Changed
+
+- `npm run demo` now serves the browser demo, while `npm run demo:example`
+  keeps the original console example path.
+
 ## [0.1.0] - 2026-03-19
 
 ### Added
