@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildHeightFieldNormals,
   createFluidWaveImpulse,
   createWaveFieldSettings,
   sampleDirectionalWaveField,
@@ -89,5 +90,58 @@ describe("fluid demo wave field", () => {
     const farAway = sampleFluidCollisionField(state, 18, 0, settings);
 
     expect(Math.abs(nearFront)).toBeGreaterThan(Math.abs(farAway));
+  });
+
+  it("uses smoothed heightfield normals so wave shading is less faceted than raw face normals", () => {
+    const rows = 3;
+    const cols = 3;
+    const positions = [
+      { x: -1, y: 0, z: -1 },
+      { x: 0, y: 0.15, z: -1 },
+      { x: 1, y: 0, z: -1 },
+      { x: -1, y: 0.1, z: 0 },
+      { x: 0, y: 0.65, z: 0 },
+      { x: 1, y: 0.12, z: 0 },
+      { x: -1, y: 0, z: 1 },
+      { x: 0, y: 0.14, z: 1 },
+      { x: 1, y: 0, z: 1 },
+    ];
+
+    const cross = (a, b) => ({
+      x: a.y * b.z - a.z * b.y,
+      y: a.z * b.x - a.x * b.z,
+      z: a.x * b.y - a.y * b.x,
+    });
+    const sub = (a, b) => ({
+      x: a.x - b.x,
+      y: a.y - b.y,
+      z: a.z - b.z,
+    });
+    const normalize = (vector) => {
+      const length = Math.hypot(vector.x, vector.y, vector.z) || 1;
+      return {
+        x: vector.x / length,
+        y: vector.y / length,
+        z: vector.z / length,
+      };
+    };
+
+    const faceNormal = normalize(
+      cross(sub(positions[4], positions[3]), sub(positions[7], positions[3]))
+    );
+    const normals = buildHeightFieldNormals(positions, rows, cols);
+    const blendedNormal = normalize({
+      x: normals[3].x + normals[4].x + normals[7].x,
+      y: normals[3].y + normals[4].y + normals[7].y,
+      z: normals[3].z + normals[4].z + normals[7].z,
+    });
+
+    expect(blendedNormal.y).toBeGreaterThan(faceNormal.y);
+    expect(blendedNormal.y).toBeGreaterThan(0.8);
+    expect(
+      normals[4].x * normals[7].x +
+        normals[4].y * normals[7].y +
+        normals[4].z * normals[7].z
+    ).toBeGreaterThan(0.9);
   });
 });

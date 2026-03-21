@@ -266,6 +266,83 @@ function normalizePlanarDirection(x, z) {
   return normalizeVec3(vec3(x, 0, z));
 }
 
+function getHeightFieldIndex(rows, cols, row, column) {
+  const clampedRow = clamp(row, 0, rows - 1);
+  const clampedColumn = clamp(column, 0, cols - 1);
+  return clampedRow * cols + clampedColumn;
+}
+
+function getSmoothedHeightFieldPoint(positions, rows, cols, row, column) {
+  const base = positions[getHeightFieldIndex(rows, cols, row, column)];
+  let height = 0;
+  let totalWeight = 0;
+
+  for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+    for (let columnOffset = -1; columnOffset <= 1; columnOffset += 1) {
+      const weight =
+        rowOffset === 0 && columnOffset === 0 ? 4 : rowOffset === 0 || columnOffset === 0 ? 2 : 1;
+      const point =
+        positions[getHeightFieldIndex(rows, cols, row + rowOffset, column + columnOffset)];
+      height += point.y * weight;
+      totalWeight += weight;
+    }
+  }
+
+  return vec3(base.x, height / totalWeight, base.z);
+}
+
+export function buildHeightFieldNormals(positions, rows, cols) {
+  const normals = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < cols; column += 1) {
+      const left = getSmoothedHeightFieldPoint(positions, rows, cols, row, column - 1);
+      const right = getSmoothedHeightFieldPoint(positions, rows, cols, row, column + 1);
+      const up = getSmoothedHeightFieldPoint(positions, rows, cols, row - 1, column);
+      const down = getSmoothedHeightFieldPoint(positions, rows, cols, row + 1, column);
+      const upLeft = getSmoothedHeightFieldPoint(positions, rows, cols, row - 1, column - 1);
+      const upRight = getSmoothedHeightFieldPoint(positions, rows, cols, row - 1, column + 1);
+      const downLeft = getSmoothedHeightFieldPoint(positions, rows, cols, row + 1, column - 1);
+      const downRight = getSmoothedHeightFieldPoint(positions, rows, cols, row + 1, column + 1);
+
+      const tangentX = subVec3(right, left);
+      const tangentZ = subVec3(down, up);
+      const diagonalA = subVec3(downRight, upLeft);
+      const diagonalB = subVec3(downLeft, upRight);
+      const primaryNormal = normalizeVec3(crossVec3(tangentZ, tangentX));
+      const diagonalNormal = normalizeVec3(crossVec3(diagonalB, diagonalA));
+      const seededNormal = normalizeVec3(
+        addVec3(
+          addVec3(scaleVec3(primaryNormal, 0.74), scaleVec3(diagonalNormal, 0.18)),
+          vec3(0, 0.24, 0)
+        )
+      );
+
+      normals.push(seededNormal);
+    }
+  }
+
+  return normals.map((_, index) => {
+    const row = Math.floor(index / cols);
+    const column = index % cols;
+    let smoothed = vec3(0, 0, 0);
+    let totalWeight = 0;
+
+    for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+      for (let columnOffset = -1; columnOffset <= 1; columnOffset += 1) {
+        const weight =
+          rowOffset === 0 && columnOffset === 0 ? 4 : rowOffset === 0 || columnOffset === 0 ? 2 : 1;
+        const normal =
+          normals[getHeightFieldIndex(rows, cols, row + rowOffset, column + columnOffset)];
+        smoothed = addVec3(smoothed, scaleVec3(normal, weight));
+        totalWeight += weight;
+      }
+    }
+
+    return normalizeVec3(addVec3(scaleVec3(smoothed, 1 / totalWeight), vec3(0, 0.12, 0)));
+  });
+}
+
 function reflectVec3(vector, normal) {
   const unitNormal = normalizeVec3(normal);
   return subVec3(vector, scaleVec3(unitNormal, 2 * dotVec3(vector, unitNormal)));
@@ -979,8 +1056,8 @@ function buildWaterSurface(state, visuals) {
   const waveSettings = createWaveFieldSettings(visuals);
   const width = 42;
   const depth = 38;
-  const cols = state.stress ? 20 : 16;
-  const rows = state.stress ? 14 : 11;
+  const cols = state.stress ? 46 : 36;
+  const rows = state.stress ? 30 : 24;
   const positions = [];
   const indices = [];
   const originX = -width * 0.5;
@@ -1011,6 +1088,7 @@ function buildWaterSurface(state, visuals) {
     rows,
     cols,
     positions,
+    normals: buildHeightFieldNormals(positions, rows, cols),
     indices,
     waveSettings,
     nearColor: visuals.waterNear ?? { r: 0.14, g: 0.39, b: 0.49 },
@@ -1244,15 +1322,23 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
   pushHarborGeometry(camera, viewport, triangles, visuals);
 
   for (let index = 0; index < water.indices.length; index += 3) {
-    const a = water.positions[water.indices[index]];
-    const b = water.positions[water.indices[index + 1]];
-    const c = water.positions[water.indices[index + 2]];
+    const aIndex = water.indices[index];
+    const bIndex = water.indices[index + 1];
+    const cIndex = water.indices[index + 2];
+    const a = water.positions[aIndex];
+    const b = water.positions[bIndex];
+    const c = water.positions[cIndex];
     const projected = [projectPoint(a, camera, viewport), projectPoint(b, camera, viewport), projectPoint(c, camera, viewport)];
     if (projected.some((value) => value === null)) {
       continue;
     }
     const depthRatio = clamp((a.z + b.z + c.z) / 54, 0, 1);
-    const normal = normalizeVec3(crossVec3(subVec3(b, a), subVec3(c, a)));
+    const normal = normalizeVec3(
+      addVec3(
+        addVec3(water.normals[aIndex], water.normals[bIndex]),
+        water.normals[cIndex]
+      )
+    );
     triangles.push({
       points: projected,
       depth: (projected[0].depth + projected[1].depth + projected[2].depth) / 3,
