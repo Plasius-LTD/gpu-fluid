@@ -4,6 +4,7 @@ import {
   computeShipFloatOffset,
   buildHeightFieldNormals,
   createFluidWaveImpulse,
+  type FluidVector3,
   createWaveFieldSettings,
   reflectPointAcrossPlane,
   sampleDirectionalWaveField,
@@ -109,17 +110,17 @@ describe("fluid demo wave field", () => {
       { x: 1, y: 0, z: 1 },
     ];
 
-    const cross = (a, b) => ({
+    const cross = (a: FluidVector3, b: FluidVector3): FluidVector3 => ({
       x: a.y * b.z - a.z * b.y,
       y: a.z * b.x - a.x * b.z,
       z: a.x * b.y - a.y * b.x,
     });
-    const sub = (a, b) => ({
+    const sub = (a: FluidVector3, b: FluidVector3): FluidVector3 => ({
       x: a.x - b.x,
       y: a.y - b.y,
       z: a.z - b.z,
     });
-    const normalize = (vector) => {
+    const normalize = (vector: FluidVector3): FluidVector3 => {
       const length = Math.hypot(vector.x, vector.y, vector.z) || 1;
       return {
         x: vector.x / length,
@@ -129,21 +130,21 @@ describe("fluid demo wave field", () => {
     };
 
     const faceNormal = normalize(
-      cross(sub(positions[4], positions[3]), sub(positions[7], positions[3]))
+      cross(sub(positions[4]!, positions[3]!), sub(positions[7]!, positions[3]!))
     );
     const normals = buildHeightFieldNormals(positions, rows, cols);
     const blendedNormal = normalize({
-      x: normals[3].x + normals[4].x + normals[7].x,
-      y: normals[3].y + normals[4].y + normals[7].y,
-      z: normals[3].z + normals[4].z + normals[7].z,
+      x: normals[3]!.x + normals[4]!.x + normals[7]!.x,
+      y: normals[3]!.y + normals[4]!.y + normals[7]!.y,
+      z: normals[3]!.z + normals[4]!.z + normals[7]!.z,
     });
 
     expect(blendedNormal.y).toBeGreaterThan(faceNormal.y);
     expect(blendedNormal.y).toBeGreaterThan(0.8);
     expect(
-      normals[4].x * normals[7].x +
-        normals[4].y * normals[7].y +
-        normals[4].z * normals[7].z
+      normals[4]!.x * normals[7]!.x +
+        normals[4]!.y * normals[7]!.y +
+        normals[4]!.z * normals[7]!.z
     ).toBeGreaterThan(0.9);
   });
 
@@ -162,8 +163,8 @@ describe("fluid demo wave field", () => {
       max: [1.35, 0.95, 4.1],
     };
     const offset = computeShipFloatOffset(bounds, {}, 1.1);
-    const keelDepth = offset + bounds.min[1] * 1.1;
-    const deckHeight = offset + bounds.max[1] * 1.1;
+    const keelDepth = offset + bounds.min[1]! * 1.1;
+    const deckHeight = offset + bounds.max[1]! * 1.1;
 
     expect(keelDepth).toBeLessThan(-0.05);
     expect(keelDepth).toBeGreaterThan(-0.28);
