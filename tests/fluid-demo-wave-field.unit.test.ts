@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  computeShipFloatOffset,
   buildHeightFieldNormals,
   createFluidWaveImpulse,
   createWaveFieldSettings,
@@ -153,5 +154,19 @@ describe("fluid demo wave field", () => {
     expect(reflected.x).toBe(original.x);
     expect(reflected.z).toBe(original.z);
     expect(reflected.y).toBeCloseTo(-1.1, 6);
+  });
+
+  it("keeps the ship hull riding above the water surface instead of sinking through it", () => {
+    const bounds = {
+      min: [-1.35, -0.5, -3.2],
+      max: [1.35, 0.95, 4.1],
+    };
+    const offset = computeShipFloatOffset(bounds, {}, 1.1);
+    const keelDepth = offset + bounds.min[1] * 1.1;
+    const deckHeight = offset + bounds.max[1] * 1.1;
+
+    expect(keelDepth).toBeLessThan(-0.05);
+    expect(keelDepth).toBeGreaterThan(-0.28);
+    expect(deckHeight).toBeGreaterThan(1.2);
   });
 });

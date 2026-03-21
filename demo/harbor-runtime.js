@@ -29,6 +29,8 @@ const UNIT_BOX_MESH = Object.freeze({
   ]),
 });
 
+const SHIP_RENDER_SCALE = 1.1;
+
 function injectStyles() {
   if (globalThis.document?.getElementById(STYLE_ID)) {
     return;
@@ -370,6 +372,17 @@ function transformPoint(point, transform) {
 
 export function reflectPointAcrossPlane(point, planeY, sink = 0.08) {
   return vec3(point.x, planeY - (point.y - planeY) - sink, point.z);
+}
+
+export function computeShipFloatOffset(bounds, physics = {}, scale = SHIP_RENDER_SCALE) {
+  const minY = bounds?.min?.[1] ?? -0.5;
+  const maxY = bounds?.max?.[1] ?? 0.95;
+  const hullHeight = Math.max(0.1, (maxY - minY) * scale);
+  const draftRatio = clamp(physics.draftRatio ?? 0.18, 0.08, 0.35);
+  const surfaceClearance = physics.surfaceClearance ?? 0.09;
+  const draftDepth = hullHeight * draftRatio;
+
+  return -minY * scale - draftDepth + surfaceClearance;
 }
 
 function projectPoint(point, camera, viewport) {
@@ -936,19 +949,25 @@ function updateShips(state, dt, shipModel, visuals) {
   const physics = shipModel.physics;
   const halfExtents = physics.halfExtents ?? [1.35, 0.95, 3.9];
   const waveSettings = createWaveFieldSettings(visuals);
+  const floatOffset = computeShipFloatOffset(shipModel.bounds, physics, SHIP_RENDER_SCALE);
   let collided = false;
   for (const ship of state.ships) {
     ship.position = addVec3(ship.position, scaleVec3(ship.velocity, dt));
     ship.rotationY += ship.angularVelocity * dt;
     ship.velocity = scaleVec3(ship.velocity, 1 - (physics.linearDamping ?? 0.04) * dt);
     ship.angularVelocity *= 1 - (physics.angularDamping ?? 0.08) * dt;
-    ship.position.y =
+    const surfaceY =
       sampleFluidSurfaceHeight(state, visuals, ship.position.x, ship.position.z, {
         settings: waveSettings,
         excludeShipId: ship.id,
       }) *
-        0.22 +
-      (physics.waterline ?? 0.42);
+      0.65;
+    const targetFloatY = surfaceY + floatOffset;
+    ship.position.y = mix(
+      ship.position.y,
+      targetFloatY,
+      clamp(dt * 4.8, 0.18, 0.32)
+    );
     if (Math.abs(ship.position.x) > 10) {
       ship.velocity.x *= -1;
       ship.angularVelocity *= -1;
@@ -1322,7 +1341,7 @@ function buildFlagSurface(state, visuals) {
 }
 
 function renderShipRigging(ctx, ship, camera, viewport) {
-  const transform = { position: ship.position, rotationY: ship.rotationY, scale: 1.1 };
+  const transform = { position: ship.position, rotationY: ship.rotationY, scale: SHIP_RENDER_SCALE };
   const mastBase = transformPoint(vec3(0, 0.38, -0.4), transform);
   const mastTop = transformPoint(vec3(0, 3.8, -0.2), transform);
   const aftBase = transformPoint(vec3(-0.25, 0.32, -1.9), transform);
@@ -1382,7 +1401,7 @@ function renderShipShadow(
 ) {
   const bounds = shipModel.bounds;
   const keelY = (shipModel.physics.waterline ?? 0.42) - 0.28;
-  const transform = { position: ship.position, rotationY: ship.rotationY, scale: 1.1 };
+  const transform = { position: ship.position, rotationY: ship.rotationY, scale: SHIP_RENDER_SCALE };
   const hullCorners = [
     vec3(bounds.min[0], keelY, bounds.min[2]),
     vec3(bounds.max[0], keelY, bounds.min[2]),
@@ -1502,9 +1521,10 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
 
   drawSkyAndSea(ctx, canvas, state, visuals, shadowStrength, reflectionStrength);
 
-  const triangles = [];
+  const solidTriangles = [];
+  const waterTriangles = [];
   const reflectionTriangles = [];
-  pushHarborGeometry(camera, viewport, triangles, visuals);
+  pushHarborGeometry(camera, viewport, solidTriangles, visuals);
   pushHarborReflections(state, visuals, camera, viewport, reflectionTriangles, reflectionStrength);
 
   for (let index = 0; index < water.indices.length; index += 3) {
@@ -1525,7 +1545,7 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
         water.normals[cIndex]
       )
     );
-    triangles.push({
+    waterTriangles.push({
       points: projected,
       depth: (projected[0].depth + projected[1].depth + projected[2].depth) / 3,
       worldCenter: scaleVec3(addVec3(addVec3(a, b), c), 1 / 3),
@@ -1549,7 +1569,7 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
       continue;
     }
     const normal = normalizeVec3(crossVec3(subVec3(b, a), subVec3(c, a)));
-    triangles.push({
+    solidTriangles.push({
       points: projected,
       depth: (projected[0].depth + projected[1].depth + projected[2].depth) / 3,
       worldCenter: scaleVec3(addVec3(addVec3(a, b), c), 1 / 3),
@@ -1574,16 +1594,16 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
   for (const ship of state.ships) {
     buildTrianglesFromMesh(
       shipModel,
-      { position: ship.position, rotationY: ship.rotationY, scale: 1.1 },
+      { position: ship.position, rotationY: ship.rotationY, scale: SHIP_RENDER_SCALE },
       ship.tint,
       camera,
       viewport,
-      triangles,
+      solidTriangles,
       clamp(visuals.shadowAccent ?? 0.04, 0, 0.12)
     );
     buildReflectionTrianglesFromMesh(
       shipModel,
-      { position: ship.position, rotationY: ship.rotationY, scale: 1.1 },
+      { position: ship.position, rotationY: ship.rotationY, scale: SHIP_RENDER_SCALE },
       ship.tint,
       state,
       visuals,
@@ -1597,6 +1617,7 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
   }
 
   drawTriangles(ctx, reflectionTriangles, lightDir, reflectionStrength, camera, shadowStrength);
+  drawTriangles(ctx, waterTriangles, lightDir, reflectionStrength, camera, shadowStrength);
 
   for (const ship of state.ships) {
     renderShipShadow(
@@ -1613,8 +1634,8 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
   }
   renderFlagShadow(ctx, flag, camera, viewport, lightDir, shadowStrength);
 
-  drawTriangles(ctx, triangles, lightDir, reflectionStrength, camera, shadowStrength);
   renderWaterHighlights(ctx, water, camera, viewport);
+  drawTriangles(ctx, solidTriangles, lightDir, reflectionStrength, camera, shadowStrength);
   renderFlagPole(ctx, camera, viewport);
   renderFlagAccent(ctx, flag, camera, viewport);
   for (const ship of state.ships) {

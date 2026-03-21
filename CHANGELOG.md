@@ -28,6 +28,9 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 - The harbor water now mirrors the ships, harbor blocks, and flag back into
   the surface with wave-distorted reflections instead of relying on highlights
   alone.
+- The harbor ships now float from mesh-derived buoyancy offsets, and the scene
+  render order now keeps water beneath the solid hull pass so the demo no
+  longer shows water-over-hull z-fighting.
 
 ## [0.1.0] - 2026-03-19
 
