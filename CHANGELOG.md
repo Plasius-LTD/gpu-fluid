@@ -16,6 +16,9 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
   ship asset, and loader instead of a sibling-repo showcase import.
 - `npm run demo` still serves the browser demo, while `npm run demo:example`
   keeps the original console example path.
+- The harbor runtime now renders stronger near-field shadow projection and
+  reflection accents so fluid continuity remains visible under the upgraded
+  lighting model.
 
 ## [0.1.0] - 2026-03-19
 
