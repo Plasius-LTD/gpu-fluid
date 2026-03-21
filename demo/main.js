@@ -25,7 +25,7 @@ function updateState(state, scene) {
   };
 }
 
-function describeState(state) {
+function describeState(state, scene) {
   const plan = createFluidRepresentationPlan({
     fluidBodyId: "harbor",
     kind: "ocean",
@@ -44,28 +44,32 @@ function describeState(state) {
   return {
     status: `Fluid live · ${band} band · ${representation.output}`,
     details:
-      `The water surface keeps a continuous wave field while the fluid package swaps from live surface detail to simplified and proxy representations.`,
+      `The water surface now advects in a stable travel direction while wakes and collision ripples from the GLTF ships are layered into the same shared wave field.`,
     sceneMetrics: [
       `distance: ${state.distanceMeters.toFixed(1)} m`,
       `band: ${band}`,
       `output: ${representation.output}`,
       `rt: ${representation.rtParticipation}`,
+      `wake sources: ${scene.ships.filter((ship) => Math.hypot(ship.velocity.x, ship.velocity.z) > 0.12).length}`,
     ],
     qualityMetrics: [
       `blend window: ${continuityBand.blendWindowMeters} m`,
       `amplitude floor: ${continuityBand.amplitudeFloor.toFixed(2)}`,
       `frequency floor: ${continuityBand.frequencyFloor.toFixed(2)}`,
       `foam history: ${continuityBand.retainFoamHistory ? "retained" : "reduced"}`,
+      `directionality: ${continuityBand.retainDirectionality ? "preserved" : "reduced"}`,
     ],
     debugMetrics: [
       `cadence divisor: ${representation.updateCadenceDivisor}x`,
       `shadow mode: ${representation.shadowMode}`,
       `caustics: ${representation.shading.caustics ? "enabled" : "disabled"}`,
       `reflection mode: ${representation.shading.reflectionMode}`,
+      `collision ripples: ${scene.waveImpulses.length}`,
     ],
     notes: [
       "This harbor scene uses the local demo asset path, so the package can be served from its own root.",
-      "Wave continuity stays visible as the active representation crosses near, mid, far, and horizon ranges.",
+      "Wave continuity now moves through the scene instead of ping-ponging in place, so near, mid, far, and horizon bands share a drifting wave field.",
+      "Ship wakes and collision ripples are folded into the same water surface instead of the fluid ignoring nearby rigid bodies.",
       "Stress mode exaggerates the wave field without breaking the representation contract.",
     ],
     textState: {
@@ -74,6 +78,8 @@ function describeState(state) {
       band,
       representation,
       continuityBand,
+      wakeSources: scene.ships.filter((ship) => Math.hypot(ship.velocity.x, ship.velocity.z) > 0.12).length,
+      collisionRipples: scene.waveImpulses.length,
     },
     visuals: {
       waveAmplitude:
@@ -84,6 +90,11 @@ function describeState(state) {
             : band === "far"
               ? continuityBand.amplitudeFloor * 0.8
               : continuityBand.amplitudeFloor * 0.68,
+      waveDirection: { x: 0.94, z: 0.34 },
+      wavePhaseSpeed: band === "near" ? 1.18 : band === "mid" ? 1.06 : band === "far" ? 0.92 : 0.8,
+      wakeStrength: band === "near" ? 0.32 : band === "mid" ? 0.26 : band === "far" ? 0.18 : 0.12,
+      wakeLength: band === "near" ? 18 : band === "mid" ? 15 : band === "far" ? 12 : 9,
+      collisionRippleStrength: band === "near" ? 0.56 : band === "mid" ? 0.42 : 0.26,
       flagMotion: 0.52,
       reflectionStrength: representation.shading.reflectionMode === "full" ? 0.24 : 0.12,
       shadowAccent: representation.shadowMode === "ray-traced-primary" ? 0.08 : 0.04,

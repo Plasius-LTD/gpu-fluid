@@ -31,6 +31,13 @@ Then open `http://localhost:8000/gpu-fluid/demo/`.
 fluid continuity. The existing console example remains available via
 `npm run demo:example`.
 
+The demo now validates:
+
+- directional wave continuity rather than in-place standing oscillation
+- ship wakes and hull pressure on the near-field surface
+- collision ripple propagation when rigid bodies interact
+- continuity retention as the representation band shifts by distance
+
 ## What It Solves
 
 - Defines near, mid, far, and horizon fluid representation bands.

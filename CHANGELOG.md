@@ -19,6 +19,9 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 - The harbor runtime now renders stronger near-field shadow projection and
   reflection accents so fluid continuity remains visible under the upgraded
   lighting model.
+- The fluid demo now advects a shared wave field through the harbor instead of
+  using standing-wave ping-pong motion, and moving or colliding ships now
+  imprint wakes and ripple impulses into the surface.
 
 ## [0.1.0] - 2026-03-19
 

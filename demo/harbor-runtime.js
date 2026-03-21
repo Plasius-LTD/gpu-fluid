@@ -262,6 +262,10 @@ function normalizeVec3(a) {
   return vec3(a.x / length, a.y / length, a.z / length);
 }
 
+function normalizePlanarDirection(x, z) {
+  return normalizeVec3(vec3(x, 0, z));
+}
+
 function reflectVec3(vector, normal) {
   const unitNormal = normalizeVec3(normal);
   return subVec3(vector, scaleVec3(unitNormal, 2 * dotVec3(vector, unitNormal)));
@@ -473,12 +477,217 @@ function setListContent(element, values) {
   element.innerHTML = values.map((value) => `<li>${value}</li>`).join("");
 }
 
-function sampleWave(x, z, time, waveAmplitude) {
-  return (
-    Math.sin(x * 0.16 + time * 1.12) * waveAmplitude * 0.54 +
-    Math.cos(z * 0.11 + time * 0.88) * waveAmplitude * 0.34 +
-    Math.sin((x + z) * 0.07 + time * 1.4) * waveAmplitude * 0.18
+export function createWaveFieldSettings(visuals = {}) {
+  const primaryDirection = normalizePlanarDirection(
+    visuals.waveDirection?.x ?? 0.94,
+    visuals.waveDirection?.z ?? 0.34
   );
+  const lateralDirection = normalizePlanarDirection(
+    -primaryDirection.z,
+    primaryDirection.x
+  );
+  const phaseSpeed = visuals.wavePhaseSpeed ?? 1.16;
+
+  return Object.freeze({
+    primaryDirection,
+    lateralDirection,
+    phaseSpeed,
+    driftMetersPerSecond: visuals.waveDriftMetersPerSecond ?? phaseSpeed * 6.2,
+    wakeStrength: visuals.wakeStrength ?? 0.28,
+    wakeLength: visuals.wakeLength ?? 18,
+    wakeWidth: visuals.wakeWidth ?? 2.6,
+    wakeFrequency: visuals.wakeFrequency ?? 1.72,
+    hullInfluence: visuals.hullInfluence ?? 0.08,
+    collisionRippleStrength: visuals.collisionRippleStrength ?? 0.52,
+    collisionRippleSpeed: visuals.collisionRippleSpeed ?? 4.6,
+    collisionRippleWidth: visuals.collisionRippleWidth ?? 3.8,
+    collisionRippleFrequency: visuals.collisionRippleFrequency ?? 1.48,
+    collisionRippleDecay: visuals.collisionRippleDecay ?? 0.6,
+  });
+}
+
+export function sampleDirectionalWaveField(
+  x,
+  z,
+  time,
+  waveAmplitude,
+  settings = createWaveFieldSettings()
+) {
+  const point = vec3(x, 0, z);
+  const along = dotVec3(point, settings.primaryDirection);
+  const across = dotVec3(point, settings.lateralDirection);
+  const phase = settings.phaseSpeed;
+
+  return (
+    Math.sin(
+      along * 0.22 -
+        time * phase * 1.34 +
+        Math.sin(across * 0.04 - time * phase * 0.18) * 0.42
+    ) *
+      waveAmplitude *
+      0.46 +
+    Math.sin(
+      along * 0.12 +
+        across * 0.035 -
+        time * phase * 0.82 +
+        0.8
+    ) *
+      waveAmplitude *
+      0.3 +
+    Math.sin(
+      along * 0.36 -
+        across * 0.08 -
+        time * phase * 1.78 +
+        1.9
+    ) *
+      waveAmplitude *
+      0.16 +
+    Math.sin(
+      across * 0.06 +
+        along * 0.02 -
+        time * phase * 0.38
+    ) *
+      waveAmplitude *
+      0.08
+  );
+}
+
+export function createFluidWaveImpulse(
+  origin,
+  strength,
+  options = {}
+) {
+  return Object.freeze({
+    origin: vec3(origin.x, origin.y ?? 0, origin.z),
+    age: options.age ?? 0,
+    strength,
+    radiusGrowth: options.radiusGrowth ?? 4.6,
+    bandWidth: options.bandWidth ?? 3.8,
+    frequency: options.frequency ?? 1.48,
+    decayRate: options.decayRate ?? 0.6,
+  });
+}
+
+export function sampleFluidWakeField(
+  state,
+  x,
+  z,
+  time,
+  settings = createWaveFieldSettings(),
+  options = {}
+) {
+  const excludeShipId = options.excludeShipId;
+  let wake = 0;
+
+  for (const ship of state.ships ?? []) {
+    if (ship.id === excludeShipId) {
+      continue;
+    }
+
+    const speed = Math.hypot(ship.velocity.x, ship.velocity.z);
+    if (speed < 0.12) {
+      continue;
+    }
+
+    const heading = normalizePlanarDirection(ship.velocity.x, ship.velocity.z);
+    const trailing = scaleVec3(heading, -1);
+    const lateral = normalizePlanarDirection(-heading.z, heading.x);
+    const stern = addVec3(ship.position, scaleVec3(heading, -2.8));
+    const rel = vec3(x - stern.x, 0, z - stern.z);
+    const trail = dotVec3(rel, trailing);
+    if (trail < 0 || trail > settings.wakeLength) {
+      continue;
+    }
+
+    const side = dotVec3(rel, lateral);
+    const width = mix(
+      settings.wakeWidth * 0.7,
+      settings.wakeWidth * 1.8,
+      clamp(trail / settings.wakeLength, 0, 1)
+    );
+    const envelope =
+      Math.exp(-trail / (settings.wakeLength * 0.8)) *
+      Math.exp(-(side * side) / (width * width));
+    const phase =
+      trail * settings.wakeFrequency -
+      time * (settings.phaseSpeed * 2 + speed * 0.28);
+
+    wake +=
+      Math.sin(phase) *
+      envelope *
+      Math.min(1.5, speed * 0.22) *
+      settings.wakeStrength;
+
+    const bow = addVec3(ship.position, scaleVec3(heading, 2.4));
+    const bowRel = vec3(x - bow.x, 0, z - bow.z);
+    const bowForward = dotVec3(bowRel, heading);
+    const bowSide = dotVec3(bowRel, lateral);
+    if (bowForward > -1.2 && bowForward < 3.2) {
+      const bowEnvelope =
+        Math.exp(-(bowForward * bowForward) / 7.2) *
+        Math.exp(-(bowSide * bowSide) / 3.8);
+      wake += bowEnvelope * settings.hullInfluence * Math.min(1.3, speed * 0.16);
+    }
+  }
+
+  return wake;
+}
+
+export function sampleFluidCollisionField(
+  state,
+  x,
+  z,
+  settings = createWaveFieldSettings()
+) {
+  let ripples = 0;
+
+  for (const impulse of state.waveImpulses ?? []) {
+    const dx = x - impulse.origin.x;
+    const dz = z - impulse.origin.z;
+    const distance = Math.hypot(dx, dz);
+    const radius = impulse.age * impulse.radiusGrowth;
+    const front = distance - radius;
+    if (Math.abs(front) > impulse.bandWidth) {
+      continue;
+    }
+
+    const envelope =
+      Math.exp(-(front * front) / (impulse.bandWidth * impulse.bandWidth * 0.82)) *
+      Math.exp(-impulse.age * impulse.decayRate);
+    ripples +=
+      Math.sin(front * impulse.frequency - impulse.age * settings.collisionRippleSpeed) *
+      impulse.strength *
+      envelope;
+  }
+
+  return ripples;
+}
+
+export function sampleFluidSurfaceHeight(
+  state,
+  visuals,
+  x,
+  z,
+  options = {}
+) {
+  const settings =
+    options.settings ?? createWaveFieldSettings(visuals);
+  const waveAmplitude = options.waveAmplitude ?? visuals.waveAmplitude ?? 1;
+
+  return (
+    sampleDirectionalWaveField(x, z, state.time, waveAmplitude, settings) +
+    sampleFluidWakeField(state, x, z, state.time, settings, options) +
+    sampleFluidCollisionField(state, x, z, settings)
+  );
+}
+
+function updateFluidImpulses(state, dt) {
+  state.waveImpulses = (state.waveImpulses ?? [])
+    .map((impulse) => ({
+      ...impulse,
+      age: impulse.age + dt,
+    }))
+    .filter((impulse) => impulse.age < 7.5);
 }
 
 function spawnSpray(state, point, intensity) {
@@ -501,6 +710,7 @@ function spawnSpray(state, point, intensity) {
 function updateShips(state, dt, shipModel, visuals) {
   const physics = shipModel.physics;
   const halfExtents = physics.halfExtents ?? [1.35, 0.95, 3.9];
+  const waveSettings = createWaveFieldSettings(visuals);
   let collided = false;
   for (const ship of state.ships) {
     ship.position = addVec3(ship.position, scaleVec3(ship.velocity, dt));
@@ -508,7 +718,11 @@ function updateShips(state, dt, shipModel, visuals) {
     ship.velocity = scaleVec3(ship.velocity, 1 - (physics.linearDamping ?? 0.04) * dt);
     ship.angularVelocity *= 1 - (physics.angularDamping ?? 0.08) * dt;
     ship.position.y =
-      sampleWave(ship.position.x, ship.position.z, state.time, visuals.waveAmplitude) * 0.22 +
+      sampleFluidSurfaceHeight(state, visuals, ship.position.x, ship.position.z, {
+        settings: waveSettings,
+        excludeShipId: ship.id,
+      }) *
+        0.22 +
       (physics.waterline ?? 0.42);
     if (Math.abs(ship.position.x) > 10) {
       ship.velocity.x *= -1;
@@ -541,6 +755,23 @@ function updateShips(state, dt, shipModel, visuals) {
       (a.position.z + b.position.z) * 0.5
     );
     spawnSpray(state, contact, Math.abs(dx) + Math.abs(dz));
+    state.waveImpulses.push(
+      createFluidWaveImpulse(
+        contact,
+        clamp(
+          waveSettings.collisionRippleStrength *
+            (0.48 + (Math.abs(dx) + Math.abs(dz)) * 0.12),
+          0.18,
+          waveSettings.collisionRippleStrength
+        ),
+        {
+          radiusGrowth: waveSettings.collisionRippleSpeed,
+          bandWidth: waveSettings.collisionRippleWidth,
+          frequency: waveSettings.collisionRippleFrequency,
+          decayRate: waveSettings.collisionRippleDecay,
+        }
+      )
+    );
     state.collisions += 1;
     collided = true;
   }
@@ -575,6 +806,7 @@ function createState(packageState) {
     collisions: 0,
     collisionFlash: 0,
     sprays: [],
+    waveImpulses: [],
     ships: [
       {
         id: "northwind",
@@ -744,6 +976,7 @@ function pushHarborGeometry(camera, viewport, triangles, visuals) {
 }
 
 function buildWaterSurface(state, visuals) {
+  const waveSettings = createWaveFieldSettings(visuals);
   const width = 42;
   const depth = 38;
   const cols = state.stress ? 20 : 16;
@@ -758,7 +991,10 @@ function buildWaterSurface(state, visuals) {
       const v = row / (rows - 1);
       const x = originX + width * u;
       const z = originZ + depth * v;
-      const y = sampleWave(x, z, state.time, visuals.waveAmplitude) * 0.65;
+      const y =
+        sampleFluidSurfaceHeight(state, visuals, x, z, {
+          settings: waveSettings,
+        }) * 0.65;
       positions.push(vec3(x, y, z));
     }
   }
@@ -776,6 +1012,7 @@ function buildWaterSurface(state, visuals) {
     cols,
     positions,
     indices,
+    waveSettings,
     nearColor: visuals.waterNear ?? { r: 0.14, g: 0.39, b: 0.49 },
     farColor: visuals.waterFar ?? { r: 0.26, g: 0.52, b: 0.62 },
   };
@@ -870,7 +1107,17 @@ function renderFlagPole(ctx, camera, viewport) {
   ctx.stroke();
 }
 
-function renderShipShadow(ctx, shipModel, ship, state, camera, viewport, lightDir, shadowStrength) {
+function renderShipShadow(
+  ctx,
+  shipModel,
+  ship,
+  state,
+  camera,
+  viewport,
+  lightDir,
+  shadowStrength,
+  visuals
+) {
   const bounds = shipModel.bounds;
   const keelY = (shipModel.physics.waterline ?? 0.42) - 0.28;
   const transform = { position: ship.position, rotationY: ship.rotationY, scale: 1.1 };
@@ -882,7 +1129,18 @@ function renderShipShadow(ctx, shipModel, ship, state, camera, viewport, lightDi
   ].map((point) => transformPoint(point, transform));
 
   renderProjectedShadow(ctx, hullCorners, camera, viewport, lightDir, {
-    planeY: sampleWave(ship.position.x, ship.position.z, state.time, 0.45) * 0.14 - 0.03,
+    planeY:
+      sampleFluidSurfaceHeight(
+        state,
+        {
+          ...visuals,
+          waveAmplitude: 0.45,
+        },
+        ship.position.x,
+        ship.position.z
+      ) *
+        0.14 -
+      0.03,
     alpha: 0.08 + shadowStrength * 0.18,
     blur: 12 + shadowStrength * 24,
   });
@@ -904,6 +1162,9 @@ function renderFlagShadow(ctx, flag, camera, viewport, lightDir, shadowStrength)
 }
 
 function renderWaterHighlights(ctx, water, camera, viewport) {
+  const direction = water.waveSettings.primaryDirection;
+  const driftOffsetX = direction.x * 6;
+  const driftOffsetY = -direction.z * 3.5;
   for (let row = 2; row < water.rows - 1; row += 2) {
     ctx.beginPath();
     let started = false;
@@ -916,7 +1177,7 @@ function renderWaterHighlights(ctx, water, camera, viewport) {
         ctx.moveTo(point.x, point.y);
         started = true;
       } else {
-        ctx.lineTo(point.x, point.y);
+        ctx.lineTo(point.x + driftOffsetX, point.y + driftOffsetY);
       }
     }
     if (started) {
@@ -1038,7 +1299,17 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
   }
 
   for (const ship of state.ships) {
-    renderShipShadow(ctx, shipModel, ship, state, camera, viewport, lightDir, shadowStrength);
+    renderShipShadow(
+      ctx,
+      shipModel,
+      ship,
+      state,
+      camera,
+      viewport,
+      lightDir,
+      shadowStrength,
+      visuals
+    );
   }
   renderFlagShadow(ctx, flag, camera, viewport, lightDir, shadowStrength);
 
@@ -1082,6 +1353,7 @@ function updateTextState(state, shipModel, description) {
     })),
     collisions: state.collisions,
     sprays: state.sprays.length,
+    waveImpulses: state.waveImpulses.length,
     stress: state.stress,
     shipPhysics: shipModel.physics,
     package: description.textState ?? {},
@@ -1095,6 +1367,7 @@ function stepScene(state, shipModel, packageHooks, dt) {
   const preDescription = packageHooks.describe?.(state.packageState, state) ?? {};
   const preVisuals = preDescription.visuals ?? {};
   updateShips(state, dt, shipModel, preVisuals);
+  updateFluidImpulses(state, dt);
   updateSprays(state, dt);
   const updated = packageHooks.update?.(state.packageState, state, dt);
   if (updated !== undefined) {
