@@ -368,6 +368,10 @@ function transformPoint(point, transform) {
   return addVec3(rotated, transform.position);
 }
 
+export function reflectPointAcrossPlane(point, planeY, sink = 0.08) {
+  return vec3(point.x, planeY - (point.y - planeY) - sink, point.z);
+}
+
 function projectPoint(point, camera, viewport) {
   const relative = subVec3(point, camera.eye);
   const viewX = dotVec3(relative, camera.right);
@@ -476,6 +480,150 @@ function buildTrianglesFromMesh(mesh, transform, baseColor, camera, viewport, tr
       baseColor,
       accent,
     });
+  }
+}
+
+function sampleReflectionPlaneY(state, visuals, x, z, options = {}) {
+  const planeVisuals = {
+    ...visuals,
+    waveAmplitude: (visuals.waveAmplitude ?? 1) * 0.72,
+  };
+  return (
+    sampleFluidSurfaceHeight(state, planeVisuals, x, z, options) * 0.65 -
+    0.03
+  );
+}
+
+function applyReflectionDistortion(projectedPoint, sourcePoint, state, waveSettings, strength) {
+  const ripple = sampleDirectionalWaveField(
+    sourcePoint.x,
+    sourcePoint.z,
+    state.time,
+    1,
+    waveSettings
+  );
+  const wake = sampleFluidWakeField(
+    state,
+    sourcePoint.x,
+    sourcePoint.z,
+    state.time,
+    waveSettings
+  );
+  const collision = sampleFluidCollisionField(
+    state,
+    sourcePoint.x,
+    sourcePoint.z,
+    waveSettings
+  );
+  const distortion = ripple * 0.7 + wake * 1.4 + collision * 1.2;
+
+  return {
+    ...projectedPoint,
+    x:
+      projectedPoint.x +
+      waveSettings.primaryDirection.x * distortion * (18 + strength * 30),
+    y: projectedPoint.y + distortion * (11 + strength * 18),
+  };
+}
+
+function buildReflectionTrianglesFromWorldPoints(
+  worldPoints,
+  baseColor,
+  state,
+  visuals,
+  camera,
+  viewport,
+  triangles,
+  options = {}
+) {
+  const waveSettings = options.waveSettings ?? createWaveFieldSettings(visuals);
+  const reflectionStrength = clamp(options.reflectionStrength ?? 0.2, 0, 0.55);
+  const worldCenter = scaleVec3(
+    worldPoints.reduce((acc, point) => addVec3(acc, point), vec3(0, 0, 0)),
+    1 / worldPoints.length
+  );
+  const planeY = sampleReflectionPlaneY(state, visuals, worldCenter.x, worldCenter.z, {
+    settings: waveSettings,
+  });
+  const reflected = worldPoints.map((point) =>
+    reflectPointAcrossPlane(point, planeY, 0.08 + reflectionStrength * 0.1)
+  );
+  const projected = reflected
+    .map((point) => projectPoint(point, camera, viewport))
+    .map((point, index) =>
+      point
+        ? applyReflectionDistortion(point, reflected[index], state, waveSettings, reflectionStrength)
+        : null
+    );
+  if (projected.some((value) => value === null)) {
+    return;
+  }
+
+  const averageY =
+    projected.reduce((sum, point) => sum + point.y, 0) / projected.length;
+  if (averageY < viewport.height * 0.42) {
+    return;
+  }
+
+  const reflectedNormal = normalizeVec3(
+    crossVec3(subVec3(reflected[2], reflected[0]), subVec3(reflected[1], reflected[0]))
+  );
+  triangles.push({
+    points: projected,
+    depth: projected.reduce((sum, point) => sum + point.depth, 0) / projected.length,
+    worldCenter: scaleVec3(
+      reflected.reduce((acc, point) => addVec3(acc, point), vec3(0, 0, 0)),
+      1 / reflected.length
+    ),
+    normal: reflectedNormal,
+    baseColor,
+    accent: 0,
+    alpha: 0.14 + reflectionStrength * 0.22,
+    isReflection: true,
+    horizonFade: clamp((averageY - viewport.height * 0.43) / (viewport.height * 0.46), 0, 1),
+  });
+}
+
+function buildReflectionTrianglesFromMesh(
+  mesh,
+  transform,
+  baseColor,
+  state,
+  visuals,
+  camera,
+  viewport,
+  triangles,
+  options = {}
+) {
+  for (let index = 0; index < mesh.indices.length; index += 3) {
+    const aIndex = mesh.indices[index] * 3;
+    const bIndex = mesh.indices[index + 1] * 3;
+    const cIndex = mesh.indices[index + 2] * 3;
+    const worldPoints = [
+      transformPoint(
+        vec3(mesh.positions[aIndex], mesh.positions[aIndex + 1], mesh.positions[aIndex + 2]),
+        transform
+      ),
+      transformPoint(
+        vec3(mesh.positions[bIndex], mesh.positions[bIndex + 1], mesh.positions[bIndex + 2]),
+        transform
+      ),
+      transformPoint(
+        vec3(mesh.positions[cIndex], mesh.positions[cIndex + 1], mesh.positions[cIndex + 2]),
+        transform
+      ),
+    ];
+
+    buildReflectionTrianglesFromWorldPoints(
+      worldPoints,
+      baseColor,
+      state,
+      visuals,
+      camera,
+      viewport,
+      triangles,
+      options
+    );
   }
 }
 
@@ -966,13 +1114,23 @@ function drawTriangles(ctx, triangles, lightDir, reflectionStrength, camera, sha
     const gloss = triangle.worldCenter.y < 0.9 ? 1 : triangle.accent > 0.05 ? 0.55 : 0.3;
     const specular = Math.pow(clamp(dotVec3(reflectedLight, viewDir), 0, 1), triangle.worldCenter.y < 0.9 ? 18 : 12) * gloss;
     const occlusion = triangle.worldCenter.y < 0.9 ? shadowStrength * 0.03 : 0;
+    const fillColor = triangle.isReflection
+      ? {
+          r: clamp(shaded.r * (0.58 + reflectionStrength * 0.24), 0, 1),
+          g: clamp(shaded.g * (0.64 + reflectionStrength * 0.26), 0, 1),
+          b: clamp(shaded.b * (0.78 + reflectionStrength * 0.32) + reflectionStrength * 0.06, 0, 1),
+        }
+      : {
+          r: clamp(shaded.r + reflection * 0.08 + specular * 0.14 - occlusion, 0, 1),
+          g: clamp(shaded.g + reflection * 0.08 + specular * 0.15 - occlusion, 0, 1),
+          b: clamp(shaded.b + reflection * 0.14 + specular * 0.2 - occlusion * 0.5, 0, 1),
+        };
+    const alpha = triangle.isReflection
+      ? clamp((triangle.alpha ?? 0.18) * (triangle.horizonFade ?? 1), 0, 0.54)
+      : triangle.alpha ?? 0.98;
     ctx.fillStyle = colorToRgba(
-      {
-        r: clamp(shaded.r + reflection * 0.08 + specular * 0.14 - occlusion, 0, 1),
-        g: clamp(shaded.g + reflection * 0.08 + specular * 0.15 - occlusion, 0, 1),
-        b: clamp(shaded.b + reflection * 0.14 + specular * 0.2 - occlusion * 0.5, 0, 1),
-      },
-      0.98
+      fillColor,
+      alpha
     );
     ctx.beginPath();
     ctx.moveTo(triangle.points[0].x, triangle.points[0].y);
@@ -1010,8 +1168,8 @@ function renderProjectedShadow(ctx, worldPoints, camera, viewport, lightDir, opt
   ctx.restore();
 }
 
-function pushHarborGeometry(camera, viewport, triangles, visuals) {
-  const harborObjects = [
+function getHarborObjects(visuals) {
+  return [
     {
       position: vec3(-8.2, 1.1, -0.9),
       rotationY: -0.16,
@@ -1034,6 +1192,10 @@ function pushHarborGeometry(camera, viewport, triangles, visuals) {
       accent: 0.02,
     },
   ];
+}
+
+function pushHarborGeometry(camera, viewport, triangles, visuals) {
+  const harborObjects = getHarborObjects(visuals);
 
   for (const object of harborObjects) {
     buildTrianglesFromMesh(
@@ -1048,6 +1210,28 @@ function pushHarborGeometry(camera, viewport, triangles, visuals) {
       viewport,
       triangles,
       object.accent
+    );
+  }
+}
+
+function pushHarborReflections(state, visuals, camera, viewport, triangles, reflectionStrength) {
+  for (const object of getHarborObjects(visuals)) {
+    buildReflectionTrianglesFromMesh(
+      UNIT_BOX_MESH,
+      {
+        position: object.position,
+        rotationY: object.rotationY,
+        scale: object.scale,
+      },
+      object.color,
+      state,
+      visuals,
+      camera,
+      viewport,
+      triangles,
+      {
+        reflectionStrength: reflectionStrength * 0.9,
+      }
     );
   }
 }
@@ -1311,7 +1495,7 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
   const viewport = { width: canvas.width, height: canvas.height };
   const camera = buildCamera(canvas);
   const lightDir = normalizeVec3(vec3(-0.46, 0.84, -0.26));
-  const reflectionStrength = clamp(visuals.reflectionStrength ?? 0.16, 0, 0.45);
+  const reflectionStrength = clamp(visuals.reflectionStrength ?? 0.22, 0, 0.58);
   const shadowStrength = clamp((visuals.shadowAccent ?? 0.05) * 6, 0.18, 0.72);
   const water = buildWaterSurface(state, visuals);
   const flag = buildFlagSurface(state, visuals);
@@ -1319,7 +1503,9 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
   drawSkyAndSea(ctx, canvas, state, visuals, shadowStrength, reflectionStrength);
 
   const triangles = [];
+  const reflectionTriangles = [];
   pushHarborGeometry(camera, viewport, triangles, visuals);
+  pushHarborReflections(state, visuals, camera, viewport, reflectionTriangles, reflectionStrength);
 
   for (let index = 0; index < water.indices.length; index += 3) {
     const aIndex = water.indices[index];
@@ -1350,6 +1536,7 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
         b: mix(water.nearColor.b, water.farColor.b, depthRatio),
       },
       accent: 0.02,
+      alpha: 0.64 + reflectionStrength * 0.12,
     });
   }
 
@@ -1370,6 +1557,18 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
       baseColor: flag.color,
       accent: 0.08,
     });
+    buildReflectionTrianglesFromWorldPoints(
+      [a, b, c],
+      flag.color,
+      state,
+      visuals,
+      camera,
+      viewport,
+      reflectionTriangles,
+      {
+        reflectionStrength: reflectionStrength * 0.7,
+      }
+    );
   }
 
   for (const ship of state.ships) {
@@ -1382,7 +1581,22 @@ function renderScene(ctx, canvas, dom, state, shipModel, description) {
       triangles,
       clamp(visuals.shadowAccent ?? 0.04, 0, 0.12)
     );
+    buildReflectionTrianglesFromMesh(
+      shipModel,
+      { position: ship.position, rotationY: ship.rotationY, scale: 1.1 },
+      ship.tint,
+      state,
+      visuals,
+      camera,
+      viewport,
+      reflectionTriangles,
+      {
+        reflectionStrength,
+      }
+    );
   }
+
+  drawTriangles(ctx, reflectionTriangles, lightDir, reflectionStrength, camera, shadowStrength);
 
   for (const ship of state.ships) {
     renderShipShadow(

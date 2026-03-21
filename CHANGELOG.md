@@ -25,6 +25,9 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 - The harbor water surface now derives smoothed heightfield normals and uses a
   denser surface grid so wave shading reads as water instead of sharp saw-tooth
   faceting.
+- The harbor water now mirrors the ships, harbor blocks, and flag back into
+  the surface with wave-distorted reflections instead of relying on highlights
+  alone.
 
 ## [0.1.0] - 2026-03-19
 

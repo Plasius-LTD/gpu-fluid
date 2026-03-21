@@ -4,6 +4,7 @@ import {
   buildHeightFieldNormals,
   createFluidWaveImpulse,
   createWaveFieldSettings,
+  reflectPointAcrossPlane,
   sampleDirectionalWaveField,
   sampleFluidCollisionField,
   sampleFluidSurfaceHeight,
@@ -143,5 +144,14 @@ describe("fluid demo wave field", () => {
         normals[4].y * normals[7].y +
         normals[4].z * normals[7].z
     ).toBeGreaterThan(0.9);
+  });
+
+  it("reflects scene points back across the sampled water plane", () => {
+    const original = { x: 3.4, y: 2.2, z: -1.7 };
+    const reflected = reflectPointAcrossPlane(original, 0.6, 0.1);
+
+    expect(reflected.x).toBe(original.x);
+    expect(reflected.z).toBe(original.z);
+    expect(reflected.y).toBeCloseTo(-1.1, 6);
   });
 });

@@ -64,12 +64,14 @@ function describeState(state, scene) {
       `shadow mode: ${representation.shadowMode}`,
       `caustics: ${representation.shading.caustics ? "enabled" : "disabled"}`,
       `reflection mode: ${representation.shading.reflectionMode}`,
+      `surface reflections: ${representation.shading.reflectionMode === "full" ? "ship + harbor" : "reduced ship + harbor"}`,
       `collision ripples: ${scene.waveImpulses.length}`,
     ],
     notes: [
       "This harbor scene uses the local demo asset path, so the package can be served from its own root.",
       "Wave continuity now moves through the scene instead of ping-ponging in place, so near, mid, far, and horizon bands share a drifting wave field.",
       "Ship wakes and collision ripples are folded into the same water surface instead of the fluid ignoring nearby rigid bodies.",
+      "Water reflections now mirror the ships, harbor blocks, and flag back into the surface instead of relying on highlights alone.",
       "Stress mode exaggerates the wave field without breaking the representation contract.",
     ],
     textState: {
@@ -96,7 +98,7 @@ function describeState(state, scene) {
       wakeLength: band === "near" ? 18 : band === "mid" ? 15 : band === "far" ? 12 : 9,
       collisionRippleStrength: band === "near" ? 0.56 : band === "mid" ? 0.42 : 0.26,
       flagMotion: 0.52,
-      reflectionStrength: representation.shading.reflectionMode === "full" ? 0.24 : 0.12,
+      reflectionStrength: representation.shading.reflectionMode === "full" ? 0.46 : 0.3,
       shadowAccent: representation.shadowMode === "ray-traced-primary" ? 0.08 : 0.04,
       waterNear: { r: 0.12, g: 0.41, b: 0.52 },
       waterFar: { r: 0.28, g: 0.56, b: 0.68 },
