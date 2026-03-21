@@ -6,6 +6,20 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 
 ## [Unreleased]
 
+- **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.0] - 2026-03-21
+
 ### Added
 
 - A browser-based 3D harbor demo focused on fluid continuity.
