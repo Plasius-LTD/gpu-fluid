@@ -4,7 +4,7 @@ import {
   defaultFluidProfile,
   selectFluidRepresentationBand,
 } from "../dist/index.js";
-import { mountHarborShowcase } from "./harbor-runtime.js";
+import { mountGpuShowcase as mountHarborShowcase } from "../node_modules/@plasius/gpu-shared/dist/index.js";
 
 const root = globalThis.document?.getElementById("app");
 if (!root) {
@@ -68,7 +68,7 @@ function describeState(state, scene) {
       `collision ripples: ${scene.waveImpulses.length}`,
     ],
     notes: [
-      "This harbor scene uses the local demo asset path, so the package can be served from its own root.",
+      "The 3D surface now comes from the shared @plasius/gpu-shared runtime instead of a package-local harbor renderer copy.",
       "Wave continuity now moves through the scene instead of ping-ponging in place, so near, mid, far, and horizon bands share a drifting wave field.",
       "Ship wakes and collision ripples are folded into the same water surface instead of the fluid ignoring nearby rigid bodies.",
       "Water reflections now mirror the ships, harbor blocks, and flag back into the surface instead of relying on highlights alone.",
@@ -118,7 +118,7 @@ await mountHarborShowcase({
   packageName: "@plasius/gpu-fluid",
   title: "Fluid Continuity in a 3D Harbor",
   subtitle:
-    "Package-local 3D validation for wave continuity and representation bands, with the harbor surface staying coherent around the colliding GLTF ships.",
+    "Family-coordinated 3D validation for wave continuity and representation bands, with the harbor surface staying coherent around the colliding GLTF ships.",
   createState,
   updateState,
   describeState,
