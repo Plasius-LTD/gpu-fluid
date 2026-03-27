@@ -71,7 +71,7 @@ function describeState(state, scene) {
       "The 3D surface now comes from the shared @plasius/gpu-shared runtime instead of a package-local harbor renderer copy.",
       "Wave continuity now moves through the scene instead of ping-ponging in place, so near, mid, far, and horizon bands share a drifting wave field.",
       "Ship wakes and collision ripples are folded into the same water surface instead of the fluid ignoring nearby rigid bodies.",
-      "Water reflections now mirror the ships, harbor blocks, and flag back into the surface instead of relying on highlights alone.",
+      "Water reflections now mirror moonlight, lanterns, ships, harbor blocks, and the flag back into the surface instead of relying on highlights alone.",
       "Stress mode exaggerates the wave field without breaking the representation contract.",
     ],
     textState: {
@@ -100,15 +100,12 @@ function describeState(state, scene) {
       flagMotion: 0.52,
       reflectionStrength: representation.shading.reflectionMode === "full" ? 0.46 : 0.3,
       shadowAccent: representation.shadowMode === "ray-traced-primary" ? 0.08 : 0.04,
-      waterNear: { r: 0.12, g: 0.41, b: 0.52 },
-      waterFar: { r: 0.28, g: 0.56, b: 0.68 },
-      seaTop: "#214f65",
-      seaMid: "#103d54",
-      seaBottom: "#082232",
-      skyTop: "#edf6fb",
-      skyMid: "#bed3e0",
-      skyBottom: "#7ca2b5",
-      sunCore: "rgba(248, 242, 218, 0.9)",
+      waterNear: band === "near" ? { r: 0.08, g: 0.26, b: 0.38 } : { r: 0.07, g: 0.22, b: 0.33 },
+      waterFar: { r: 0.18, g: 0.35, b: 0.49 },
+      moonReflection: representation.shading.reflectionMode === "full"
+        ? "rgba(202, 222, 255, 0.24)"
+        : "rgba(176, 198, 232, 0.16)",
+      lanternReflectionStrength: band === "near" ? 0.58 : band === "mid" ? 0.48 : 0.34,
     },
   };
 }
@@ -118,7 +115,7 @@ await mountHarborShowcase({
   packageName: "@plasius/gpu-fluid",
   title: "Fluid Continuity in a 3D Harbor",
   subtitle:
-    "Family-coordinated 3D validation for wave continuity and representation bands, with the harbor surface staying coherent around the colliding GLTF ships.",
+    "Family-coordinated moonlit harbor validation for wave continuity and representation bands, with the water surface staying coherent around the colliding GLTF ships.",
   createState,
   updateState,
   describeState,
