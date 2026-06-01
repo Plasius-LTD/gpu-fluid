@@ -239,6 +239,317 @@ export interface FluidContinuityEnvelope {
 }
 
 /**
+ * Planar vector used by water-surface wave and wake contracts.
+ */
+export interface FluidWaterVector2 {
+  x: number;
+  z: number;
+}
+
+/**
+ * Three-dimensional point/vector used by water-surface wake contracts.
+ */
+export interface FluidWaterVector3 extends FluidWaterVector2 {
+  y?: number;
+}
+
+/**
+ * Moving vessel/collider that contributes a Kelvin wake and bow disturbance.
+ */
+export interface FluidWaterVessel {
+  id?: string;
+  position: FluidWaterVector3;
+  velocity: FluidWaterVector3;
+  wakeStrength?: number;
+  wakeLength?: number;
+  wakeWidth?: number;
+  wanderPhase?: number;
+}
+
+/**
+ * Local impulse emitted into the water surface, for example from a collision.
+ */
+export interface FluidWaterImpulse {
+  x?: number;
+  z?: number;
+  origin?: FluidWaterVector3;
+  strength: number;
+  radius?: number;
+  life?: number;
+  age?: number;
+  radiusGrowth?: number;
+  bandWidth?: number;
+  frequency?: number;
+  decayRate?: number;
+}
+
+/**
+ * Tunable shared water-surface controls consumed by demos and renderers.
+ */
+export interface FluidWaterSurfaceSettingsInput {
+  waveAmplitude?: number;
+  waveDirection?: FluidWaterVector2;
+  wavePhaseSpeed?: number;
+  wakeStrength?: number;
+  wakeLength?: number;
+  wakeWidth?: number;
+  wakeFrequency?: number;
+  hullInfluence?: number;
+  collisionRippleStrength?: number;
+  collisionRippleSpeed?: number;
+  collisionRippleWidth?: number;
+  collisionRippleFrequency?: number;
+  collisionRippleDecay?: number;
+}
+
+/**
+ * Normalized shared water-surface controls.
+ */
+export interface FluidWaterSurfaceSettings extends Required<FluidWaterSurfaceSettingsInput> {
+  primaryDirection: FluidWaterVector3;
+  lateralDirection: FluidWaterVector3;
+  driftMetersPerSecond: number;
+}
+
+/**
+ * Input for sampling the shared water surface.
+ */
+export interface FluidWaterSurfaceSampleInput extends FluidWaterSurfaceSettingsInput {
+  x: number;
+  z: number;
+  time: number;
+  vessels?: readonly FluidWaterVessel[];
+  impulses?: readonly FluidWaterImpulse[];
+  excludeVesselId?: string;
+  settings?: FluidWaterSurfaceSettings;
+}
+
+/**
+ * Decomposed water-surface sample.
+ */
+export interface FluidWaterSurfaceSample {
+  height: number;
+  baseHeight: number;
+  wakeHeight: number;
+  impulseHeight: number;
+}
+
+/**
+ * Input for sampling a smoothed finite-difference water normal.
+ */
+export interface FluidWaterSurfaceNormalInput extends FluidWaterSurfaceSampleInput {
+  sampleDistance?: number;
+  verticalScale?: number;
+}
+
+/**
+ * Smoothed water normal and tangent frame for renderer shading.
+ */
+export interface FluidWaterSurfaceNormal {
+  normal: Required<FluidWaterVector3>;
+  tangentX: Required<FluidWaterVector3>;
+  tangentZ: Required<FluidWaterVector3>;
+  slope: number;
+}
+
+/**
+ * Wake trail point used by renderers for patch-based wake/foam drawing.
+ */
+export interface FluidWaterWakePoint {
+  center: Required<FluidWaterVector3>;
+  width: number;
+  turbulence: number;
+}
+
+export interface FluidWaterWakeTrail {
+  kind: "center" | "kelvin-arm";
+  side?: -1 | 1;
+  opacity: number;
+  points: readonly FluidWaterWakePoint[];
+}
+
+export interface FluidWaterFoamPatch {
+  center: Required<FluidWaterVector3>;
+  majorAxis: Required<FluidWaterVector3>;
+  minorAxis: Required<FluidWaterVector3>;
+  radiusX: number;
+  radiusZ: number;
+  opacity: number;
+}
+
+export interface FluidWaterRippleRing {
+  center: Required<FluidWaterVector3>;
+  radius: number;
+  opacity: number;
+}
+
+export type FluidWaterParticleKind =
+  | "wake-foam"
+  | "bow-spray"
+  | "impact-spray"
+  | "ripple-foam";
+
+export interface FluidWaterParticle {
+  kind: FluidWaterParticleKind;
+  center: Required<FluidWaterVector3>;
+  velocity?: Required<FluidWaterVector3>;
+  radius: number;
+  opacity: number;
+  stretch: number;
+  rotation: number;
+}
+
+export interface FluidWaterMotionEffects {
+  wakeTrails: readonly FluidWaterWakeTrail[];
+  foamPatches: readonly FluidWaterFoamPatch[];
+  rippleRings: readonly FluidWaterRippleRing[];
+  particles: readonly FluidWaterParticle[];
+}
+
+export interface FluidWaterMotionEffectsInput extends FluidWaterSurfaceSettingsInput {
+  time: number;
+  vessels?: readonly FluidWaterVessel[];
+  impulses?: readonly FluidWaterImpulse[];
+  settings?: FluidWaterSurfaceSettings;
+  surfaceScale?: number;
+}
+
+/**
+ * Large-area water zone descriptor used to tile an open fluid surface.
+ */
+export interface FluidWaterSurfaceZoneInput {
+  id?: string;
+  band: FluidRepresentationBand;
+  minZ: number;
+  maxZ: number;
+  startWidthMeters: number;
+  endWidthMeters: number;
+  centerX?: number;
+  rows?: number;
+  columns?: number;
+  baseHeightStart?: number;
+  baseHeightEnd?: number;
+  verticalScale?: number;
+  verticalScaleStart?: number;
+  verticalScaleEnd?: number;
+}
+
+/**
+ * Polygonal footprint that should not receive generated water cells.
+ */
+export interface FluidWaterSurfaceExclusionPolygon {
+  id?: string;
+  points: readonly FluidWaterVector2[];
+}
+
+/**
+ * Continuity data consumed by a generated water-surface zone.
+ */
+export interface FluidWaterSurfaceZoneContinuity {
+  amplitudeFloor?: number;
+  frequencyFloor?: number;
+}
+
+/**
+ * Controls how neighboring large-area water zones are joined.
+ */
+export type FluidWaterSurfaceStitchingMode = "strict" | "shared-boundary";
+
+/**
+ * Input for building stitched large-area water-surface geometry.
+ */
+export interface FluidWaterSurfaceZoneLayoutInput extends FluidWaterSurfaceSettingsInput {
+  time: number;
+  zones: readonly FluidWaterSurfaceZoneInput[];
+  vessels?: readonly FluidWaterVessel[];
+  impulses?: readonly FluidWaterImpulse[];
+  settings?: FluidWaterSurfaceSettings;
+  exclusions?: readonly FluidWaterSurfaceExclusionPolygon[];
+  continuity?: Partial<Record<FluidRepresentationBand, FluidWaterSurfaceZoneContinuity>>;
+  stitchingMode?: FluidWaterSurfaceStitchingMode;
+  sampleDistanceScale?: number;
+}
+
+/**
+ * One sampled vertex in a generated large-area water zone.
+ */
+export interface FluidWaterSurfaceZoneVertex {
+  zoneId: string;
+  band: FluidRepresentationBand;
+  row: number;
+  column: number;
+  u: number;
+  v: number;
+  distanceT: number;
+  widthMeters: number;
+  position: Required<FluidWaterVector3>;
+  normal: Required<FluidWaterVector3>;
+  sample: Readonly<FluidWaterSurfaceSample>;
+}
+
+/**
+ * Boundary row metadata for one side of a generated zone.
+ */
+export interface FluidWaterSurfaceZoneBoundary {
+  side: "minZ" | "maxZ";
+  z: number;
+  widthMeters: number;
+  startIndex: number;
+  vertexCount: number;
+}
+
+/**
+ * Seam metadata describing how two neighboring zones were stitched.
+ */
+export interface FluidWaterSurfaceZoneStitch {
+  fromZoneId: string;
+  toZoneId: string;
+  fromBand: FluidRepresentationBand;
+  toBand: FluidRepresentationBand;
+  z: number;
+  widthMeters: number;
+  originalFromWidthMeters: number;
+  originalToWidthMeters: number;
+  mode: FluidWaterSurfaceStitchingMode;
+}
+
+/**
+ * Generated renderer-ready mesh for one large-area water zone.
+ */
+export interface FluidWaterSurfaceZoneMesh {
+  id: string;
+  band: FluidRepresentationBand;
+  minZ: number;
+  maxZ: number;
+  startWidthMeters: number;
+  endWidthMeters: number;
+  rows: number;
+  columns: number;
+  vertices: readonly Readonly<FluidWaterSurfaceZoneVertex>[];
+  positions: readonly Required<FluidWaterVector3>[];
+  normals: readonly Required<FluidWaterVector3>[];
+  indices: readonly number[];
+  activeCellCount: number;
+  skippedCellCount: number;
+  boundaries: Readonly<{
+    minZ: Readonly<FluidWaterSurfaceZoneBoundary>;
+    maxZ: Readonly<FluidWaterSurfaceZoneBoundary>;
+  }>;
+}
+
+/**
+ * Complete stitched large-area water layout for renderers.
+ */
+export interface FluidWaterSurfaceZoneLayout {
+  schemaVersion: 1;
+  owner: "fluid";
+  time: number;
+  zones: readonly Readonly<FluidWaterSurfaceZoneMesh>[];
+  stitching: readonly Readonly<FluidWaterSurfaceZoneStitch>[];
+  exclusions: readonly Readonly<FluidWaterSurfaceExclusionPolygon>[];
+}
+
+/**
  * Range thresholds used to select a fluid band.
  */
 export interface FluidRangeThresholds {

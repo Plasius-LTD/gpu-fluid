@@ -7,7 +7,13 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 ## [Unreleased]
 
 - **Added**
-  - (placeholder)
+  - Shared water-surface sampling helpers for directional waves, vessel wakes,
+    collision ripples, and renderer-ready wake/foam descriptors.
+  - Smoothed water-normal sampling and deterministic wake-foam, bow-spray,
+    impact-spray, and ripple-foam particle descriptors for renderers.
+  - Stitched large-area water-surface zone layout generation with shared
+    boundaries, seam-width normalization, sampled normals, and exclusion-aware
+    cell indices for renderer-owned draw passes.
 
 - **Changed**
   - (placeholder)

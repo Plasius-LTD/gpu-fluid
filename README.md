@@ -36,11 +36,18 @@ The demo now validates:
 - directional wave continuity rather than in-place standing oscillation
 - ship wakes and hull pressure on the near-field surface
 - collision ripple propagation when rigid bodies interact
+- shared water-surface sampling and renderer-ready wake/foam descriptors
+- smoothed finite-difference water normals and effect-specific water particles
 - continuity retention as the representation band shifts by distance
+- stitched large-area zone layout so near, mid, far, and horizon surfaces share
+  boundaries instead of overlapping or leaving gaps
 
 ## What It Solves
 
 - Defines near, mid, far, and horizon fluid representation bands.
+- Builds stitched large-area water-surface zones with shared z boundaries,
+  seam-width normalization, and polygonal exclusion masks for fixed shoreline
+  structures.
 - Preserves wave and foam continuity so distant fluid does not visibly pop when
   band selection changes.
 - Separates stable physics snapshot inputs from derived visual fluid state.
@@ -53,9 +60,14 @@ The demo now validates:
 
 ```ts
 import {
+  buildFluidWaterSurfaceZoneLayout,
+  buildFluidWaterMotionEffects,
   createFluidRepresentationPlan,
+  createFluidWaterSurfaceSettings,
   createFluidSimulationPlan,
   getFluidWorkerManifest,
+  sampleFluidWaterSurface,
+  sampleFluidWaterSurfaceNormal,
   selectFluidRepresentationBand,
 } from "@plasius/gpu-fluid";
 
@@ -80,6 +92,92 @@ const simulationPlan = createFluidSimulationPlan("interactive");
 const workerManifest = getFluidWorkerManifest("interactive");
 
 console.log(simulationPlan.snapshotSource.stage, workerManifest.jobs.length);
+
+const waterSettings = createFluidWaterSurfaceSettings({
+  waveDirection: { x: 0.88, z: 0.28 },
+  wakeStrength: 0.31,
+});
+const waterSample = sampleFluidWaterSurface({
+  x: -4,
+  z: 7,
+  time: 1.4,
+  settings: waterSettings,
+  vessels: [
+    {
+      id: "northwind",
+      position: { x: 0, y: 0, z: 6 },
+      velocity: { x: 2.3, y: 0, z: -1 },
+    },
+  ],
+});
+const waterNormal = sampleFluidWaterSurfaceNormal({
+  x: -4,
+  z: 7,
+  time: 1.4,
+  settings: waterSettings,
+  verticalScale: 0.24,
+});
+const wakeEffects = buildFluidWaterMotionEffects({
+  time: 1.4,
+  settings: waterSettings,
+  vessels: [
+    {
+      id: "northwind",
+      position: { x: 0, y: 0, z: 6 },
+      velocity: { x: 2.3, y: 0, z: -1 },
+    },
+  ],
+});
+
+const zoneLayout = buildFluidWaterSurfaceZoneLayout({
+  time: 1.4,
+  settings: waterSettings,
+  zones: [
+    {
+      id: "near-water",
+      band: "near",
+      minZ: -6,
+      maxZ: 16,
+      startWidthMeters: 72,
+      endWidthMeters: 58,
+      rows: 24,
+      columns: 49,
+      baseHeightStart: 0.18,
+      baseHeightEnd: 0.1,
+    },
+    {
+      id: "mid-water",
+      band: "mid",
+      minZ: 16,
+      maxZ: 46,
+      startWidthMeters: 58,
+      endWidthMeters: 76,
+      rows: 14,
+      columns: 25,
+      baseHeightStart: 0.1,
+      baseHeightEnd: 0.02,
+    },
+  ],
+  continuity: representationPlan.continuity.bands,
+  exclusions: [
+    {
+      id: "quay",
+      points: [
+        { x: -12, z: -3 },
+        { x: -12, z: 5 },
+        { x: -1, z: 5 },
+        { x: -1, z: -3 },
+      ],
+    },
+  ],
+});
+
+console.log(
+  waterSample.height,
+  waterNormal.normal.y,
+  wakeEffects.particles.length,
+  zoneLayout.stitching.length
+);
 ```
 
 ## Continuity Model
@@ -97,6 +195,21 @@ view changes:
 
 The continuity model is designed so the visual answer changes in fidelity, not
 in whether waves exist at all.
+
+## Large-Area Zones
+
+Renderers should use `buildFluidWaterSurfaceZoneLayout(...)` when they need an
+open water field that spans multiple representation bands. The helper sorts the
+zones by depth, rejects overlapping or gapped ranges, normalizes neighboring
+seam widths in `shared-boundary` mode, samples the shared wave/wake/impulse
+field for each vertex, and omits cells whose centers fall inside supplied
+exclusion polygons.
+
+This keeps large surfaces owned by the fluid package while letting renderers
+provide scene-specific inputs such as harbor quays, piers, docks, or shoreline
+footprints. Consumers remain responsible for material color and final draw
+order; `@plasius/gpu-fluid` owns the geometric continuity and sampled surface
+contract.
 
 ## Worker and Performance Integration
 
@@ -128,6 +241,12 @@ Each job carries:
 - continuity envelope generation
 - stable snapshot and scene-preparation planning
 - worker-manifest and budget-contract generation
+- shared directional wave, vessel wake, collision ripple, and wake/foam
+  descriptor helpers for package demos and renderers
+- smoothed water normal sampling and deterministic wake, bow-spray, impact-spray,
+  and ripple-foam particle descriptors
+- stitched large-area water-zone mesh generation with shared boundaries and
+  exclusion-aware cell indices
 
 It does not yet provide:
 
