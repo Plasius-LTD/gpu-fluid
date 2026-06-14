@@ -18,6 +18,20 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 - **Security**
   - (placeholder)
 
+## [0.1.5] - 2026-06-14
+
+- **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
 ## [0.1.4] - 2026-05-13
 
 - **Added**
@@ -118,3 +132,4 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 [0.1.2]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.2
 [0.1.3]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.3
 [0.1.4]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.4
+[0.1.5]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.5
