@@ -4,7 +4,7 @@ import {
   defaultFluidProfile,
   selectFluidRepresentationBand,
 } from "../dist/index.js";
-import { mountGpuShowcase as mountHarborShowcase } from "../node_modules/@plasius/gpu-shared/dist/index.js";
+import { mountGpuShowcase as mountHarborShowcase } from "@plasius/gpu-shared";
 
 const root = globalThis.document?.getElementById("app");
 if (!root) {
@@ -116,6 +116,9 @@ await mountHarborShowcase({
   title: "Fluid Continuity in a 3D Harbor",
   subtitle:
     "Family-coordinated moonlit harbor validation for wave continuity and representation bands, with the water surface staying coherent around the colliding GLTF ships.",
+  __showcaseFeatureLoaders: {
+    fluid: async () => import("../dist/index.js"),
+  },
   createState,
   updateState,
   describeState,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createFluidWavefrontSceneSourceAdapter,
   createFluidRepresentationPlan,
   selectFluidRepresentationBand,
 } from "../src/index.js";
@@ -67,5 +68,49 @@ describe("createFluidRepresentationPlan", () => {
         farFieldMaxMeters: 500,
       })
     ).toThrow(/must satisfy/i);
+  });
+
+  it("includes deterministic water material and medium defaults for renderer integration", () => {
+    const plan = createFluidRepresentationPlan({
+      fluidBodyId: "harbor-water",
+      profile: "cinematic",
+      supportsRayTracing: true,
+    });
+
+    const near = plan.representations.find((entry) => entry.band === "near");
+    const horizon = plan.representations.find((entry) => entry.band === "horizon");
+
+    expect(near?.material.ior).toBe(1.333);
+    expect(near?.material.transmission).toBeGreaterThan(0.9);
+    expect(near?.material.caustics).toBe(true);
+    expect(near?.material.foam).toBe(true);
+    expect(near?.medium.absorption[0]).toBeGreaterThan(0);
+    expect(horizon?.material.foamAmount).toBeLessThan(near?.material.foamAmount ?? 1);
+  });
+
+  it("builds a wavefront scene-source adapter payload from fluid geometry", () => {
+    const plan = createFluidRepresentationPlan({
+      fluidBodyId: "harbor-water",
+      profile: "interactive",
+      supportsRayTracing: true,
+    });
+    const near = plan.representations.find((entry) => entry.band === "near");
+
+    expect(near).toBeDefined();
+    const adapter = createFluidWavefrontSceneSourceAdapter({
+      fluidBodyId: "harbor-water",
+      representation: near!,
+      mesh: {
+        positions: [-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1],
+        normals: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+        indices: [0, 1, 2, 0, 2, 3],
+      },
+    });
+
+    expect(adapter.owner).toBe("fluid");
+    expect(adapter.mesh.materialId).toBe(near!.material.id);
+    expect(adapter.mesh.mediumId).toBe(near!.medium.id);
+    expect(adapter.mesh.derivableUvs.enabled).toBe(true);
+    expect(adapter.mesh.accelerationStructureUpdateClass).toBe("deforming");
   });
 });

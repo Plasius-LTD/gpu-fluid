@@ -25,6 +25,8 @@ type BandDescriptorSpec = Omit<
   | "profile"
   | "band"
   | "continuity"
+  | "material"
+  | "medium"
 >;
 
 type ProfileRepresentationSpec = Record<FluidRepresentationBand, BandDescriptorSpec>;
@@ -342,6 +344,83 @@ const profileRepresentationSpecs: Readonly<
   }),
 });
 
+function createFluidMediumDescriptor(
+  fluidBodyId: string,
+  band: FluidRepresentationBand,
+  profile: FluidProfileName
+) {
+  const denseProfile = profile === "cinematic";
+  const nearBand = band === "near";
+  const horizonBand = band === "horizon";
+  const density = horizonBand ? 0.02 : nearBand ? (denseProfile ? 0.22 : 0.18) : 0.08;
+
+  return Object.freeze({
+    id: `${fluidBodyId}.${band}.water-medium`,
+    density,
+    attenuationColor: Object.freeze(
+      horizonBand ? [0.74, 0.82, 0.88, 1] : nearBand ? [0.62, 0.81, 0.92, 1] : [0.68, 0.82, 0.9, 1]
+    ),
+    attenuationDistance: horizonBand ? 40 : nearBand ? 4.5 : 12,
+    absorption: Object.freeze(
+      nearBand ? [0.18, 0.08, 0.03] : horizonBand ? [0.05, 0.03, 0.02] : [0.09, 0.05, 0.03]
+    ),
+    scattering: Object.freeze(
+      nearBand ? [0.03, 0.04, 0.05] : horizonBand ? [0.005, 0.006, 0.008] : [0.012, 0.015, 0.02]
+    ),
+  });
+}
+
+function createFluidMaterialDescriptor(
+  fluidBodyId: string,
+  band: FluidRepresentationBand,
+  profile: FluidProfileName,
+  caustics: boolean
+) {
+  const cinematic = profile === "cinematic";
+  const foam = band === "near" || band === "mid";
+  const roughness =
+    band === "near" ? (cinematic ? 0.018 : 0.026) : band === "mid" ? 0.05 : band === "far" ? 0.11 : 0.18;
+  const foamAmount = band === "near" ? (cinematic ? 0.72 : 0.64) : band === "mid" ? 0.38 : 0.08;
+
+  return Object.freeze({
+    id: `${fluidBodyId}.${band}.water-material`,
+    shadingModel: "water" as const,
+    baseColor: Object.freeze(
+      band === "near" ? [0.1, 0.28, 0.38, 1] : band === "mid" ? [0.13, 0.33, 0.43, 1] : [0.18, 0.39, 0.49, 1]
+    ),
+    roughness,
+    metallic: 0,
+    opacity: 0.96,
+    ior: 1.333,
+    transmission: band === "horizon" ? 0.82 : 0.96,
+    specular: 0.9,
+    caustics,
+    foam,
+    foamAmount,
+    normalTexture: Object.freeze({
+      kind: "normal" as const,
+      assetId: `${fluidBodyId}.water-normal`,
+      uvScale: Object.freeze([band === "near" ? 1.5 : 3, band === "near" ? 1.5 : 3]),
+      strength: band === "near" ? 1 : 0.7,
+    }),
+    heightTexture: Object.freeze({
+      kind: "height" as const,
+      assetId: `${fluidBodyId}.wave-height`,
+      uvScale: Object.freeze([1, 1]),
+      strength: band === "near" ? 0.08 : band === "mid" ? 0.05 : 0.02,
+    }),
+    foamTexture: foam
+      ? Object.freeze({
+          kind: "foam" as const,
+          assetId: `${fluidBodyId}.foam-mask`,
+          uvScale: Object.freeze([2, 2]),
+          strength: foamAmount,
+        })
+      : null,
+    mediumId: `${fluidBodyId}.${band}.water-medium`,
+  });
+}
+
 function normalizeThresholds(
   nearFieldMaxMeters: unknown,
   midFieldMaxMeters: unknown,
@@ -415,6 +494,13 @@ function buildRepresentationDescriptor(
         ? "selective-raster"
         : profileSpec.shadowMode,
     shading: profileSpec.shading,
+    material: createFluidMaterialDescriptor(
+      fluidBodyId,
+      band,
+      profile,
+      profileSpec.shading.caustics
+    ),
+    medium: createFluidMediumDescriptor(fluidBodyId, band, profile),
     continuity: Object.freeze({
       continuityGroupId: continuityEnvelope.continuityGroupId,
       waveFieldId: continuityEnvelope.waveFieldId,

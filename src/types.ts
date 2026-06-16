@@ -267,6 +267,50 @@ export interface FluidShadingPlan {
 }
 
 /**
+ * Texture-oriented shading input for fluid materials.
+ */
+export interface FluidMaterialTextureDescriptor {
+  kind: "normal" | "height" | "foam" | "baseColor";
+  assetId: string;
+  uvScale: readonly [number, number] | readonly number[];
+  strength: number;
+}
+
+/**
+ * Authored medium carried by a fluid surface.
+ */
+export interface FluidSurfaceMediumDescriptor {
+  id: string;
+  density: number;
+  attenuationColor: readonly [number, number, number, number] | readonly number[];
+  attenuationDistance: number;
+  absorption: readonly [number, number, number] | readonly number[];
+  scattering: readonly [number, number, number] | readonly number[];
+}
+
+/**
+ * Water-facing material descriptor for renderer integration.
+ */
+export interface FluidSurfaceMaterialDescriptor {
+  id: string;
+  shadingModel: "water";
+  baseColor: readonly [number, number, number, number] | readonly number[];
+  roughness: number;
+  metallic: number;
+  opacity: number;
+  ior: number;
+  transmission: number;
+  specular: number;
+  caustics: boolean;
+  foam: boolean;
+  foamAmount: number;
+  normalTexture: Readonly<FluidMaterialTextureDescriptor> | null;
+  heightTexture: Readonly<FluidMaterialTextureDescriptor> | null;
+  foamTexture: Readonly<FluidMaterialTextureDescriptor> | null;
+  mediumId: string;
+}
+
+/**
  * Per-band scheduling and performance hints.
  */
 export interface FluidRepresentationPerformanceHints {
@@ -294,6 +338,8 @@ export interface FluidRepresentationDescriptor {
   rtParticipation: FluidRtParticipation;
   shadowMode: FluidShadowMode;
   shading: Readonly<FluidShadingPlan>;
+  material: Readonly<FluidSurfaceMaterialDescriptor>;
+  medium: Readonly<FluidSurfaceMediumDescriptor>;
   continuity: Readonly<FluidContinuityBandSettings> & {
     continuityGroupId: string;
     waveFieldId: string;
@@ -314,6 +360,42 @@ export interface FluidRepresentationPlanOptions {
   midFieldMaxMeters?: number;
   farFieldMaxMeters?: number;
   continuity?: Partial<Omit<FluidContinuityEnvelopeInput, "fluidBodyId">>;
+}
+
+/**
+ * Geometry payload passed from a fluid package into a wavefront scene adapter.
+ */
+export interface FluidWavefrontSceneSourceMeshInput {
+  id: string;
+  fluidBodyId: string;
+  representationBand: FluidRepresentationBand;
+  rtParticipation: FluidRtParticipation;
+  accelerationStructureUpdateClass: "deforming" | "proxy" | "static";
+  materialId: string;
+  mediumId: string;
+  positions: readonly number[];
+  normals: readonly number[] | null;
+  tangents: readonly number[] | null;
+  uvs: readonly number[] | null;
+  derivableUvs: Readonly<{
+    enabled: boolean;
+    projection: "planar" | "world-xz";
+    scale: readonly [number, number] | readonly number[];
+  }>;
+  indices: readonly number[];
+}
+
+/**
+ * Renderer-facing fluid scene source payload.
+ */
+export interface FluidWavefrontSceneSourceAdapterOutput {
+  schemaVersion: 1;
+  owner: "fluid";
+  adapterId: string;
+  fluidBodyId: string;
+  material: Readonly<FluidSurfaceMaterialDescriptor>;
+  medium: Readonly<FluidSurfaceMediumDescriptor>;
+  mesh: Readonly<FluidWavefrontSceneSourceMeshInput>;
 }
 
 /**

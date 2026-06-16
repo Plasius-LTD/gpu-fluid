@@ -53,6 +53,7 @@ The demo now validates:
 
 ```ts
 import {
+  createFluidWavefrontSceneSourceAdapter,
   createFluidRepresentationPlan,
   createFluidSimulationPlan,
   getFluidWorkerManifest,
@@ -74,12 +75,25 @@ const activeRepresentation = representationPlan.representations.find(
   (entry) => entry.band === activeBand
 );
 
-console.log(activeBand, activeRepresentation?.continuity);
+console.log(activeBand, activeRepresentation?.material.ior);
 
 const simulationPlan = createFluidSimulationPlan("interactive");
 const workerManifest = getFluidWorkerManifest("interactive");
 
-console.log(simulationPlan.snapshotSource.stage, workerManifest.jobs.length);
+const adapter = createFluidWavefrontSceneSourceAdapter({
+  fluidBodyId: "harbour-ocean",
+  representation: activeRepresentation!,
+  mesh: {
+    positions: [-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1],
+    indices: [0, 1, 2, 0, 2, 3],
+  },
+});
+
+console.log(
+  simulationPlan.snapshotSource.stage,
+  workerManifest.jobs.length,
+  adapter.mesh.materialId
+);
 ```
 
 ## Continuity Model
@@ -119,6 +133,20 @@ Each job carries:
 - performance levels and ray-tracing-first metadata for
   `@plasius/gpu-performance`
 - debug metadata suitable for future `@plasius/gpu-debug` adoption
+
+## Wavefront Material Contract
+
+Each representation now also carries deterministic water-material and
+water-medium defaults so fluid surfaces can describe more than motion:
+
+- `material.ior`, `material.transmission`, `material.roughness`
+- `material.foam`, `material.foamAmount`, and `material.caustics`
+- `medium.absorption`, `medium.scattering`, and attenuation settings
+
+`createFluidWavefrontSceneSourceAdapter(...)` bundles those descriptors with
+positions, normals, tangents or tangent-generation hints, UV or derivable-UV
+metadata, indices, representation band, and RT participation so the renderer
+can ingest a fluid surface as a stable scene-source payload.
 
 ## Package Scope
 
