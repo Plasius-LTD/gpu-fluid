@@ -7,6 +7,20 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 ## [Unreleased]
 
 - **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.7] - 2026-06-16
+
+- **Added**
   - Added deterministic water material and medium descriptors to fluid
     representation plans so renderer integrations can carry IOR, absorption,
     transmission, foam, and caustic intent per band.
@@ -123,3 +137,4 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 [0.1.2]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.2
 [0.1.3]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.3
 [0.1.4]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.4
+[0.1.7]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.7
