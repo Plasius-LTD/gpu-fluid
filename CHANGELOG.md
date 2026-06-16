@@ -7,7 +7,12 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 ## [Unreleased]
 
 - **Added**
-  - (placeholder)
+  - Added deterministic water material and medium descriptors to fluid
+    representation plans so renderer integrations can carry IOR, absorption,
+    transmission, foam, and caustic intent per band.
+  - Added `createFluidWavefrontSceneSourceAdapter(...)` so fluid geometry can
+    emit wavefront-compatible mesh, material, medium, and representation-band
+    metadata.
 
 - **Changed**
   - (placeholder)

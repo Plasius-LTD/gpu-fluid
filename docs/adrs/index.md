@@ -6,4 +6,6 @@
 - [ADR-0003](./adr-0003-shared-wave-continuity.md) Shared Wave Continuity
 - [ADR-0004](./adr-0004-worker-performance-and-physics-integration.md) Worker,
   Performance, and Physics Integration
+- [ADR-0005](./adr-0005-water-material-and-wavefront-scene-source-contract.md)
+  Water Material And Wavefront Scene-Source Contract
 - [ADR Template](./adr-template.md)
