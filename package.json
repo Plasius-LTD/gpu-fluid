@@ -1,6 +1,6 @@
 {
   "name": "@plasius/gpu-fluid",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Continuity-aware fluid simulation and rendering contracts for Plasius WebGPU stacks.",
   "type": "module",
   "sideEffects": false,
