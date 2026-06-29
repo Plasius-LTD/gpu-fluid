@@ -10,6 +10,7 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
   - (placeholder)
 
 - **Changed**
+  - Refreshed runtime and toolchain dependencies to current stable releases, including `@plasius/gpu-shared` `^1.0.1`, the `@typescript-eslint` pair `^8.62.0`, Vitest `^4.1.9`, ESLint `^10.6.0`, `@types/node` `^26.0.1`, and a patched `esbuild` override on `^0.28.1`.
   - (placeholder)
 
 - **Fixed**
