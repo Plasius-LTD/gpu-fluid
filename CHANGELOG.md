@@ -10,6 +10,20 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
   - (placeholder)
 
 - **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.10] - 2026-06-29
+
+- **Added**
+  - (placeholder)
+
+- **Changed**
   - Refreshed runtime and toolchain dependencies to current stable releases, including `@plasius/gpu-shared` `^1.0.1`, the `@typescript-eslint` pair `^8.62.0`, Vitest `^4.1.9`, ESLint `^10.6.0`, `@types/node` `^26.0.1`, and a patched `esbuild` override on `^0.28.1`.
   - (placeholder)
 
@@ -169,3 +183,4 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 [0.1.7]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.7
 [0.1.8]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.8
 [0.1.9]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.9
+[0.1.10]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.10
