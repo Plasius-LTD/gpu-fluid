@@ -10,6 +10,20 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
   - (placeholder)
 
 - **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.11] - 2026-07-01
+
+- **Added**
+  - (placeholder)
+
+- **Changed**
   - Updated the runtime `@plasius/gpu-shared` dependency baseline to
     `^1.0.2`.
   - (placeholder)
@@ -186,3 +200,4 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 [0.1.8]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.8
 [0.1.9]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.9
 [0.1.10]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.10
+[0.1.11]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.11
