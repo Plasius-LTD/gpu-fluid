@@ -13,15 +13,24 @@ describe("getFluidWorkerManifest", () => {
     const roots = manifest.jobs.filter(
       (job) => job.worker.dependencies.length === 0
     );
-    const foamHistory = manifest.jobs.find((job) => job.key === "foam-history");
+    const foamSprayMask = manifest.jobs.find(
+      (job) => job.key === "foam-spray-mask"
+    );
     const nearSurface = manifest.jobs.find((job) => job.key === "near-surface");
+    const pressureProjection = manifest.jobs.find(
+      (job) => job.key === "pressure-projection"
+    );
 
     expect(manifest.schedulerMode).toBe("dag");
     expect(roots.map((job) => job.key).sort()).toEqual([
       "snapshot-ingest",
       "spectrum-advance",
     ]);
-    expect(foamHistory?.worker.dependencies).toEqual([
+    expect(pressureProjection?.worker.dependencies).toEqual([
+      "volume-advection",
+    ]);
+    expect(foamSprayMask?.worker.dependencies).toEqual([
+      "free-surface-extraction",
       "near-surface",
       "mid-surface",
     ]);

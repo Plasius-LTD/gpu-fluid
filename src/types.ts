@@ -71,6 +71,142 @@ export type FluidContinuityStrategy =
   (typeof fluidContinuityStrategies)[number];
 
 /**
+ * Simulated fluid materials. Foam, spray, and steam are render byproducts of
+ * these fluids rather than independent simulated volume materials.
+ */
+export const fluidMaterialKinds = ["water", "lava", "sludge"] as const;
+
+/**
+ * Fluid material carried by simulation cells.
+ */
+export type FluidMaterialKind = (typeof fluidMaterialKinds)[number];
+
+/**
+ * Stable identifier for one chunk in a chunked fluid simulation.
+ */
+export interface FluidSimulationChunkKey {
+  fluidBodyId: string;
+  cx: number;
+  cy: number;
+  cz: number;
+}
+
+/**
+ * Per-cell fluid state exposed for inspection and deterministic testing.
+ */
+export interface FluidCellState {
+  volumeFraction: number;
+  pressure: number;
+  velocity: readonly [number, number, number];
+  material: FluidMaterialKind;
+  temperatureKelvin: number;
+  foam: number;
+}
+
+/**
+ * Chunked voxel volume used by near-field fluid simulation.
+ */
+export interface FluidVoxelVolume {
+  schemaVersion: 1;
+  owner: "fluid";
+  chunkKey: Readonly<FluidSimulationChunkKey>;
+  sizeX: number;
+  sizeY: number;
+  sizeZ: number;
+  voxelSize: number;
+  material: FluidMaterialKind;
+  volumeFraction: Float32Array;
+  pressure: Float32Array;
+  velocity: Float32Array;
+  temperatureKelvin: Float32Array;
+  foam: Float32Array;
+}
+
+/**
+ * Solid terrain/collider constraints consumed by the fluid solver.
+ */
+export interface FluidBoundaryField {
+  schemaVersion: 1;
+  owner: "fluid";
+  chunkKey: Readonly<FluidSimulationChunkKey>;
+  sizeX: number;
+  sizeY: number;
+  sizeZ: number;
+  voxelSize: number;
+  solid: Uint8Array;
+  openBoundaryMask: number;
+}
+
+/**
+ * Runtime source/sink event applied to a volume step.
+ */
+export interface FluidSourceSink {
+  id: string;
+  kind: "source" | "sink";
+  material: FluidMaterialKind;
+  center: readonly [number, number, number];
+  radius: number;
+  rate: number;
+  temperatureKelvin?: number;
+}
+
+/**
+ * Metrics emitted by one deterministic simulation step.
+ */
+export interface FluidSimulationStep {
+  schemaVersion: 1;
+  owner: "fluid";
+  chunkKey: Readonly<FluidSimulationChunkKey>;
+  dt: number;
+  material: FluidMaterialKind;
+  massBefore: number;
+  massAfter: number;
+  maxDivergenceBefore: number;
+  maxDivergenceAfter: number;
+  changedCellCount: number;
+}
+
+/**
+ * Solver output returned after applying one step.
+ */
+export interface FluidSimulationStepResult {
+  volume: FluidVoxelVolume;
+  step: Readonly<FluidSimulationStep>;
+}
+
+/**
+ * Extracted render surface from simulated volume state.
+ */
+export interface FluidFreeSurfaceMesh {
+  schemaVersion: 1;
+  owner: "fluid";
+  chunkKey: Readonly<FluidSimulationChunkKey>;
+  material: FluidMaterialKind;
+  materialId: string;
+  positions: Float32Array;
+  normals: Float32Array;
+  indices: Uint32Array;
+  foam: Float32Array;
+  bounds: Readonly<{
+    min: readonly [number, number, number];
+    max: readonly [number, number, number];
+  }>;
+}
+
+/**
+ * Renderer-facing state derived from the real simulation volume.
+ */
+export interface FluidSimulationRenderSnapshot {
+  schemaVersion: 1;
+  owner: "fluid";
+  chunkKey: Readonly<FluidSimulationChunkKey>;
+  material: FluidMaterialKind;
+  volume: Readonly<FluidVoxelVolume>;
+  freeSurface: Readonly<FluidFreeSurfaceMesh>;
+  step: Readonly<FluidSimulationStep> | null;
+}
+
+/**
  * Coarse RT participation level for a representation.
  */
 export const fluidRtParticipationModes = [
@@ -293,7 +429,7 @@ export interface FluidSurfaceMediumDescriptor {
  */
 export interface FluidSurfaceMaterialDescriptor {
   id: string;
-  shadingModel: "water";
+  shadingModel: "water" | "lava" | "sludge" | "foam" | "steam-spray";
   baseColor: readonly [number, number, number, number] | readonly number[];
   roughness: number;
   metallic: number;
@@ -301,6 +437,8 @@ export interface FluidSurfaceMaterialDescriptor {
   ior: number;
   transmission: number;
   specular: number;
+  emissive: readonly [number, number, number] | readonly number[];
+  absorption: readonly [number, number, number] | readonly number[];
   caustics: boolean;
   foam: boolean;
   foamAmount: number;
@@ -488,14 +626,17 @@ export interface FluidWorkerManifest {
  */
 export const fluidSimulationStageOrder = [
   "snapshot-ingest",
+  "volume-advection",
+  "pressure-projection",
   "spectrum-advance",
   "boundary-coupling",
-  "surface-solve",
+  "free-surface-extraction",
+  "surface-band-update",
+  "foam-spray-mask",
   "near-surface",
   "mid-surface",
   "far-proxy",
   "horizon-shell",
-  "foam-history",
   "render-snapshot",
 ] as const;
 

@@ -7,9 +7,23 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 ## [Unreleased]
 
 - **Added**
+  - Added chunked voxel fluid simulation contracts and deterministic V1 solver
+    helpers for volume advection, pressure projection, solid boundary coupling,
+    sources/sinks, free-surface extraction, foam masks, and render snapshots.
+  - Added exported V1 WGSL solver kernels for `volume_advection`,
+    `pressure_projection`, `boundary_coupling`, `free_surface_extraction`,
+    `surface_band_update`, and `foam_spray_mask`.
+  - Added `FluidVoxelVolume`, `FluidBoundaryField`, `FluidSourceSink`,
+    `FluidSimulationStep`, `FluidFreeSurfaceMesh`, and fluid render material
+    descriptor helpers for water, lava, and sludge.
   - (placeholder)
 
 - **Changed**
+  - Updated worker simulation plans and manifests so representation bands
+    consume simulation-derived free surfaces instead of acting as the fluid
+    authority.
+  - Extended fluid surface materials with lava, sludge, foam, steam/spray,
+    emissive, and absorption shading fields.
   - (placeholder)
 
 - **Fixed**

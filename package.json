@@ -20,10 +20,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./fluid-solver.wgsl": "./dist/fluid-solver.wgsl",
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && cp src/fluid-solver.wgsl dist/fluid-solver.wgsl",
     "clean": "rimraf dist coverage",
     "demo": "python3 -m http.server --directory ..",
     "demo:example": "tsx demo/example.ts",

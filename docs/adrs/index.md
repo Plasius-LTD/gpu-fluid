@@ -8,4 +8,6 @@
   Performance, and Physics Integration
 - [ADR-0005](./adr-0005-water-material-and-wavefront-scene-source-contract.md)
   Water Material And Wavefront Scene-Source Contract
+- [ADR-0006](./adr-0006-hybrid-voxel-fluid-solver.md) Hybrid Voxel Fluid
+  Solver
 - [ADR Template](./adr-template.md)
