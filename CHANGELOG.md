@@ -7,6 +7,20 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 ## [Unreleased]
 
 - **Added**
+  - (placeholder)
+
+- **Changed**
+  - (placeholder)
+
+- **Fixed**
+  - (placeholder)
+
+- **Security**
+  - (placeholder)
+
+## [0.1.12] - 2026-07-03
+
+- **Added**
   - Added chunked voxel fluid simulation contracts and deterministic V1 solver
     helpers for volume advection, pressure projection, solid boundary coupling,
     sources/sinks, free-surface extraction, foam masks, and render snapshots.
@@ -215,3 +229,4 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 [0.1.9]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.9
 [0.1.10]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.10
 [0.1.11]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.11
+[0.1.12]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.12
