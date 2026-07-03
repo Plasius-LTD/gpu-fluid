@@ -394,6 +394,10 @@ function createFluidMaterialDescriptor(
     ior: 1.333,
     transmission: band === "horizon" ? 0.82 : 0.96,
     specular: 0.9,
+    emissive: Object.freeze([0, 0, 0]),
+    absorption: Object.freeze(
+      band === "near" ? [0.18, 0.08, 0.03] : band === "horizon" ? [0.05, 0.03, 0.02] : [0.09, 0.05, 0.03]
+    ),
     caustics,
     foam,
     foamAmount,

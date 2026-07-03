@@ -40,25 +40,60 @@ The demo now validates:
 
 ## What It Solves
 
+- Provides chunked voxel-volume fluid state for near-field water, lava, and
+  sludge simulation.
+- Provides deterministic V1 solver helpers for advection, pressure projection,
+  solid boundary coupling, sources/sinks, foam masks, and free-surface
+  extraction.
+- Ships WGSL kernels for the V1 GPU stage path: `volume_advection`,
+  `pressure_projection`, `boundary_coupling`, `free_surface_extraction`,
+  `surface_band_update`, and `foam_spray_mask`.
 - Defines near, mid, far, and horizon fluid representation bands.
 - Preserves wave and foam continuity so distant fluid does not visibly pop when
   band selection changes.
 - Separates stable physics snapshot inputs from derived visual fluid state.
 - Emits worker-manifest DAGs compatible with `@plasius/gpu-worker`.
 - Emits performance metadata compatible with `@plasius/gpu-performance`.
-- Keeps the first package slice focused on contracts, planning, and integration
-  surfaces rather than pretending to ship a full solver on day one.
+- Keeps representation bands as render outputs derived from simulation state,
+  rather than the source of truth for fluid behavior.
 
 ## Usage
 
 ```ts
 import {
+  createFluidBoundaryField,
+  createFluidSimulationChunkKey,
+  createFluidSimulationRenderSnapshot,
+  createFluidVoxelVolume,
   createFluidWavefrontSceneSourceAdapter,
   createFluidRepresentationPlan,
   createFluidSimulationPlan,
   getFluidWorkerManifest,
   selectFluidRepresentationBand,
+  stepFluidSimulation,
 } from "@plasius/gpu-fluid";
+
+const chunkKey = createFluidSimulationChunkKey("harbour-ocean", 0, 0, 0);
+const boundary = createFluidBoundaryField({
+  chunkKey,
+  sizeX: 32,
+  sizeY: 16,
+  sizeZ: 32,
+  solid: (_x, y) => y === 0,
+});
+const volume = createFluidVoxelVolume({
+  chunkKey,
+  sizeX: 32,
+  sizeY: 16,
+  sizeZ: 32,
+  material: "water",
+  initialVolumeFraction: (_x, y) => (y < 4 ? 0.8 : 0),
+});
+const stepped = stepFluidSimulation(volume, { boundary, dt: 1 / 30 });
+const renderSnapshot = createFluidSimulationRenderSnapshot(
+  stepped.volume,
+  stepped.step
+);
 
 const representationPlan = createFluidRepresentationPlan({
   fluidBodyId: "harbour-ocean",
@@ -92,9 +127,28 @@ const adapter = createFluidWavefrontSceneSourceAdapter({
 console.log(
   simulationPlan.snapshotSource.stage,
   workerManifest.jobs.length,
-  adapter.mesh.materialId
+  adapter.mesh.materialId,
+  renderSnapshot.freeSurface.indices.length
 );
 ```
+
+## Voxel Fluid Solver
+
+The V1 solver is chunk-oriented and designed for terrain-coupled gameplay:
+
+- `FluidVoxelVolume` owns volume fraction, pressure, velocity, temperature, and
+  foam buffers for one material in one simulation chunk.
+- `FluidBoundaryField` marks solid voxel terrain and collider cells that block
+  flow.
+- `FluidSourceSink` events add or drain volume for mining, waterfalls,
+  sinkholes, lava vents, and gameplay tools.
+- `stepFluidSimulation(...)` provides the deterministic CPU/reference step used
+  by tests and non-WebGPU fallbacks.
+- `src/fluid-solver.wgsl` provides the matching GPU stage entry points for
+  worker integration and renderer pipelines.
+
+The package prioritizes water and lava. Sludge shares the same solver with
+different material and viscosity defaults.
 
 ## Continuity Model
 
@@ -123,9 +177,14 @@ Typical roots:
 
 Typical downstream joins:
 
-- `near-surface` depends on both the stable physics snapshot and the current
-  wave spectrum
-- `foam-history` depends on both `near-surface` and `mid-surface`
+- `volume-advection` depends on the stable snapshot
+- `pressure-projection` depends on volume advection
+- `boundary-coupling` consumes projected volume and solid constraints
+- `free-surface-extraction` emits renderable fluid surfaces
+- `surface-band-update` joins the extracted surface with the shared spectrum
+- `foam-spray-mask` joins extracted surfaces and band updates
+- `near-surface`, `mid-surface`, `far-proxy`, and `horizon-shell` consume the
+  simulation-derived surface state
 
 Each job carries:
 
@@ -152,17 +211,17 @@ can ingest a fluid surface as a stable scene-source payload.
 
 `@plasius/gpu-fluid` currently provides:
 
+- chunked voxel-volume fluid state
+- deterministic V1 CPU/reference fluid stepping
+- V1 WGSL solver kernels and exported shader asset
+- free-surface extraction and render-snapshot helpers
 - fluid representation-band planning
 - continuity envelope generation
 - stable snapshot and scene-preparation planning
 - worker-manifest and budget-contract generation
 
-It does not yet provide:
-
-- a production fluid solver
-- actual GPU kernels
-- renderer pass execution
-- debug transport or analytics delivery
+Renderer pass execution, debug transport, analytics delivery, and full
+engine-side scheduling remain integration responsibilities.
 
 ## Development
 
