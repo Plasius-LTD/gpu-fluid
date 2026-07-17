@@ -14,7 +14,6 @@ env:
   FALLBACK_RUNNER_LABEL: ubuntu-latest
   SELF_HOSTED_RUNNER_LABELS: '["self-hosted","Linux","X64"]'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
   select-runner:
@@ -143,17 +142,3 @@ jobs:
             echo "Coverage gate failed: ${PCT}% < 80%"
             exit 1
           }
-
-      - name: Install Codecov CLI
-        if: ${{ !github.event.repository.private || env.CODECOV_TOKEN != '' }}
-        run: python3 -m pip install --upgrade codecov-cli
-
-      - name: Upload coverage to Codecov
-        if: ${{ !github.event.repository.private || env.CODECOV_TOKEN != '' }}
-        env:
-          CODECOV_TOKEN: ${{ env.CODECOV_TOKEN }}
-        run: |
-          codecovcli --verbose upload-process --disable-search --fail-on-error \
-            -n "unittests-${GITHUB_RUN_ID}" \
-            -F unittests \
-            -f "$LCOV_FILE"
