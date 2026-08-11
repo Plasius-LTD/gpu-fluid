@@ -10,4 +10,5 @@
   Water Material And Wavefront Scene-Source Contract
 - [ADR-0006](./adr-0006-hybrid-voxel-fluid-solver.md) Hybrid Voxel Fluid
   Solver
+- [ADR-0007: Hosted OIDC Package Publication](./adr-0007-hosted-oidc-package-publication.md)
 - [ADR Template](./adr-template.md)
