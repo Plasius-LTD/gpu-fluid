@@ -10,6 +10,7 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
   - (placeholder)
 
 - **Changed**
+  - Routed reviewed CI through the organisation's quarantined public runner group while retaining explicit platform labels.
   - Bound npm publication to the exact prepared `main` commit after successful push-triggered CI.
   - Updated the runtime `@plasius/gpu-shared` baseline to `^1.1.1` and refreshed transitive dependency resolutions.
   - Enabled exact-head manual CI dispatch for reviewed release validation.
