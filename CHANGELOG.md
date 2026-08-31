@@ -12,12 +12,14 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 - **Changed**
   - Bound npm publication to the exact prepared `main` commit after successful push-triggered CI.
   - Updated to the surviving `@plasius/gpu-shared` 1.0.14 line and refreshed transitive dependency resolutions.
+  - Enabled exact-head manual CI dispatch for reviewed release validation.
 
 - **Fixed**
   - (placeholder)
 
 - **Security**
   - Removed the npm write-token path, added a fail-closed npm 11.5.1-or-newer OIDC guard, and denied fork PR code access to self-hosted CI.
+  - Pinned patched transitive npm dependencies to clear the current audit baseline.
   - Added fail-closed source and npm-package admission for the administrative contributor registry and pinned the CI/CD runtime to Node.js 24.18.0 LTS.
   - (placeholder)
 
