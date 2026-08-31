@@ -15,6 +15,8 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
   - Enabled exact-head manual CI dispatch for reviewed release validation.
 
 - **Fixed**
+  - Disabled package-manager caching on self-hosted CI to prevent cache-save
+    cleanup stalls from blocking the validation queue.
   - (placeholder)
 
 - **Security**
