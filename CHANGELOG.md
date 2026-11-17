@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-11-17
+
 ### Fixed
 
 - Restore automatic schema-template npm publication and validate renewed trusted publishing with a sealed package inventory.
@@ -199,3 +201,6 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 [0.1.10]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.10
 [0.1.11]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.11
 [0.1.12]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.12
+
+[Unreleased]: https://github.com/Plasius-LTD/gpu-fluid/compare/v0.1.13...HEAD
+[0.1.13]: https://github.com/Plasius-LTD/gpu-fluid/releases/tag/v0.1.13
